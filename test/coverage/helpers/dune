@@ -1,0 +1,7 @@
+(library
+ (name base_test_coverage_helpers)
+ (public_name base_test.coverage_helpers)
+ (inline_tests)
+ (libraries base expect_test_helpers_base stdio)
+ (preprocess
+  (pps ppx_jane -compare-require-explicit-locality)))

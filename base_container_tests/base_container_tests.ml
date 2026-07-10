@@ -1,0 +1,5 @@
+include Base_container_tests_intf.Definitions
+include Container_tests
+include Container_with_creators_tests
+include Indexed_container_tests
+include Indexed_container_with_creators_tests
