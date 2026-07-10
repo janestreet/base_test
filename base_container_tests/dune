@@ -1,0 +1,7 @@
+(library
+ (name base_container_tests)
+ (public_name base_test.container_tests)
+ (libraries base base_quickcheck expect_test_helpers_base)
+ (flags :standard -w -67)
+ (preprocess
+  (pps ppx_jane ppx_loc)))

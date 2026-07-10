@@ -1,0 +1,7 @@
+(library
+ (name base_test_helpers)
+ (public_name base_test.helpers)
+ (libraries base)
+ (flags :standard -w -67)
+ (preprocess
+  (pps ppx_jane -compare-require-explicit-locality)))

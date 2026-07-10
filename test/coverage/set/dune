@@ -1,0 +1,9 @@
+(library
+ (name base_test_coverage_set)
+ (public_name base_test.coverage_set)
+ (inline_tests)
+ (libraries base base_quickcheck base_test_coverage_helpers
+   expect_test_helpers_base sexp_grammar)
+ (flags :standard -w -67)
+ (preprocess
+  (pps ppx_jane)))

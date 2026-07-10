@@ -1,0 +1,16 @@
+(library
+ (name base_test)
+ (public_name base_test)
+ (inline_tests
+  (flags -drop-tag js-only -drop-tag wasm-only))
+ (libraries base base_container_tests core.base_for_tests base_test_helpers
+   bignum.bigint expect_test_helpers_base expectable portable
+   sexp_grammar.validation sexplib stdio)
+ (flags :standard -w -67 -w -32)
+ (preprocess
+  (pps ppx_jane -dont-apply=pipebang -no-check-on-extensions)))
+
+(alias
+ (name runtest)
+ (deps
+  (glob_files %{workspace_root}/lib/kindly_base/src/*.ml{,i})))
