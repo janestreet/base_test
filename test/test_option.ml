@@ -145,7 +145,8 @@ let%expect_test "local Let_syntax" =
 module%test Test_sexp = struct
   [%%template
   module
-    [@kind k = (float64, bits32, bits64, word, value)] Test_one (T : sig
+    [@kind k = (float64, bits32, bits64, word, value)]
+    Test_one (T : sig
       type t : k [@@deriving sexp ~stackify]
 
       val of_int : int -> t

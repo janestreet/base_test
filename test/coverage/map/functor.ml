@@ -14,15 +14,16 @@ open Base_test_coverage_helpers
 open Overrides
 include Functor_intf.Definitions
 
-module Generate
+module%template Generate
     (Instance : Instance)
     (Impl : Impl with module Types := Instance.Types)
-    (Data : Data.S) : Generate with module Instance := Instance and module Data := Data =
+    (Data : Data.S
+  [@mode local]) : Generate with module Instance := Instance and module Data := Data =
 struct
   include Constructor.Make (Instance) (Impl) (Data)
 
   module Value = struct
-    type t = Data.t Instance.t [@@deriving compare, equal, sexp_of]
+    type t = Data.t Instance.t [@@deriving compare ~localize, equal ~localize, sexp_of]
   end
 end
 
@@ -34,21 +35,24 @@ struct
   module Generate = Generate (Instance) (Impl)
 
   module Alist = struct
-    type t = (Key.t * int) list [@@deriving compare, equal, quickcheck, sexp_of]
+    type t = (Key.t * int) list
+    [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
     let sample = Memo.memoize [%generator: t]
   end
 
   module Alist_merge = struct
-    type t = (Key.t * (int, int) Map.Merge_element.t) list [@@deriving equal, sexp_of]
+    type t = (Key.t * (int, int) Map.Merge_element.t) list
+    [@@deriving equal ~localize, sexp_of]
   end
 
   module Alist_multi = struct
-    type t = (Key.t * int list) list [@@deriving equal, quickcheck, sexp_of]
+    type t = (Key.t * int list) list [@@deriving equal ~localize, quickcheck, sexp_of]
   end
 
   module Diff = struct
-    type t = (Key.t, int) Map.Symmetric_diff_element.t list [@@deriving equal, sexp_of]
+    type t = (Key.t, int) Map.Symmetric_diff_element.t list
+    [@@deriving equal ~localize, sexp_of]
   end
 
   module Inst = struct
@@ -77,7 +81,7 @@ struct
 
   module Inst_inst = struct
     include Generate (struct
-        type t = Inst.Value.t [@@deriving compare, equal, sexp_of]
+        type t = Inst.Value.t [@@deriving compare ~localize, equal ~localize, sexp_of]
 
         let quickcheck_generator = Generator.map Inst.quickcheck_generator ~f:Inst.value
         let quickcheck_observer = Observer.opaque
@@ -99,7 +103,8 @@ struct
 
   module Inst_pair = struct
     include Generate (struct
-        type t = int * int [@@deriving compare, equal, quickcheck, sexp_of]
+        type t = int * int
+        [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
         let to_int (x, y) = Int.max x y
         let of_int n = n, n
@@ -113,7 +118,7 @@ struct
   end
 
   module Inst_and_inst = struct
-    include Data.Pair (Inst)
+    include%template Data.Pair [@mode local] (Inst)
 
     let sample = Memo.memoize [%generator: t]
   end
@@ -127,7 +132,8 @@ struct
   end
 
   module Inst_multi = Generate (struct
-      type t = int list [@@deriving compare, equal, quickcheck, sexp_of]
+      type t = int list
+      [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
       let to_int = List.length
       let of_int n = List.init n ~f:Fn.id
@@ -147,15 +153,15 @@ struct
   end
 
   module Key_and_data = struct
-    type t = Key.t * int [@@deriving equal, sexp_of]
+    type t = Key.t * int [@@deriving equal ~localize, sexp_of]
   end
 
   module Key_and_data_inst = struct
-    type t = (Key.t * int) Instance.t [@@deriving equal, sexp_of]
+    type t = (Key.t * int) Instance.t [@@deriving equal ~localize, sexp_of]
   end
 
   module Key_and_data_inst_multi = struct
-    type t = (Key.t * int) list Instance.t [@@deriving equal, sexp_of]
+    type t = (Key.t * int) list Instance.t [@@deriving equal ~localize, sexp_of]
   end
 
   module Inst_and_bounds = struct
@@ -246,6 +252,15 @@ module Test_creators
       require_equal (module Inst_multi.Value) t_fold t_multi;
       require_equal (module Inst_multi.Value) t_reduce t_multi)
 
+  and of_alist_multi_nonempty = of_alist_multi_nonempty
+
+  and () =
+    quickcheck_m (module Alist) ~f:(fun alist ->
+      require_equal
+        (module Inst_multi.Value)
+        (map (create of_alist_multi_nonempty alist) ~f:Nonempty_list.to_list)
+        (create of_alist_multi alist))
+
   and of_sequence = of_sequence
   and of_sequence_or_error = of_sequence_or_error
   and of_sequence_exn = of_sequence_exn
@@ -287,6 +302,17 @@ module Test_creators
       require_equal (module Inst_multi.Value) t_fold expect;
       require_equal (module Inst_multi.Value) t_reduce expect)
 
+  and of_sequence_multi_nonempty = of_sequence_multi_nonempty
+
+  and () =
+    quickcheck_m (module Alist) ~f:(fun alist ->
+      require_equal
+        (module Inst_multi.Value)
+        (map
+           (create of_sequence_multi_nonempty (Sequence.of_list alist))
+           ~f:Nonempty_list.to_list)
+        (create of_alist_multi alist))
+
   and of_list_with_key = of_list_with_key
   and of_list_with_key_or_error = of_list_with_key_or_error
   and of_list_with_key_exn = of_list_with_key_exn
@@ -326,6 +352,18 @@ module Test_creators
            (List.map list ~f:List.return)
            ~get_key:(fun x -> x |> List.hd_exn |> fst)
            ~f:(fun x y -> x @ y))
+        (create of_alist_multi alist))
+
+  and of_list_with_key_multi_nonempty = of_list_with_key_multi_nonempty
+
+  and () =
+    quickcheck_m (module Alist) ~f:(fun list ->
+      let alist = List.map list ~f:(fun (key, data) -> key, (key, data)) in
+      require_equal
+        (module Key_and_data_inst_multi)
+        (map
+           (create of_list_with_key_multi_nonempty list ~get_key:fst)
+           ~f:Nonempty_list.to_list)
         (create of_alist_multi alist))
 
   and of_increasing_sequence = of_increasing_sequence
@@ -506,6 +544,16 @@ module Test_accessors
         (access find_multi t key)
         (access find t key |> Option.value ~default:[]))
 
+  and find_multi_nonempty = find_multi_nonempty
+
+  and () =
+    quickcheck_m (module Inst_multi_and_key) ~f:(fun (t, key) ->
+      let t = filter_map (Inst_multi.value t) ~f:Nonempty_list.of_list in
+      require_equal
+        (module Data.List (Int))
+        (access find_multi_nonempty t key)
+        (access find t key |> Option.value_map ~default:[] ~f:Nonempty_list.to_list))
+
   and iter_keys = iter_keys
   and iter = iter
   and iteri = iteri
@@ -556,7 +604,7 @@ module Test_accessors
       require_equal
         (module struct
           type t = int list * Base.Map.Finished_or_unfinished.t
-          [@@deriving equal, sexp_of]
+          [@@deriving equal ~localize, sexp_of]
         end)
         (let q = Queue.create () in
          let status =
@@ -1088,6 +1136,22 @@ module Test_transformers
       let expect = access set t ~key ~data in
       require_equal (module Inst.Value) actual expect)
 
+  and update_or_null = update_or_null
+
+  and () =
+    quickcheck_m (module Inst_and_key_and_data) ~f:(fun (t, key, data) ->
+      let t = Inst.value t in
+      let actual =
+        access update_or_null t key ~f:(fun previous ->
+          require_equal
+            (module Data.Option (Int))
+            (Or_null.to_option previous)
+            (access find t key);
+          data)
+      in
+      let expect = access set t ~key ~data in
+      require_equal (module Inst.Value) actual expect)
+
   and update_and_return = update_and_return
 
   and () =
@@ -1101,6 +1165,24 @@ module Test_transformers
       let expect = access set t ~key ~data in
       require_equal (module Inst.Value) actual expect;
       require_equal (module Int) new_data data)
+
+  and change_and_return = change_and_return
+
+  and () =
+    quickcheck_m (module Inst_and_key_and_maybe_data) ~f:(fun (t, key, maybe_data) ->
+      let t = Inst.value t in
+      let new_data, actual =
+        access change_and_return t key ~f:(fun previous ->
+          require_equal (module Data.Option (Int)) previous (access find t key);
+          maybe_data)
+      in
+      let expect =
+        match maybe_data with
+        | None -> access remove t key
+        | Some data -> access set t ~key ~data
+      in
+      require_equal (module Inst.Value) actual expect;
+      require_equal (module Data.Option (Int)) new_data maybe_data)
 
   and add_multi = add_multi
   and remove_multi = remove_multi
@@ -1119,6 +1201,26 @@ module Test_transformers
           | None | Some ([] | [ _ ]) -> None
           | Some (_ :: (_ :: _ as rest)) -> Some rest)))
 
+  and add_multi_nonempty = add_multi_nonempty
+  and remove_multi_nonempty = remove_multi_nonempty
+
+  and () =
+    quickcheck_m (module Inst_multi_and_key_and_data) ~f:(fun (t, key, data) ->
+      let t_nonempty = filter_map (Inst_multi.value t) ~f:Nonempty_list.of_list in
+      let t_without_empty =
+        filter (Inst_multi.value t) ~f:(function
+          | [] -> false
+          | _ :: _ -> true)
+      in
+      require_equal
+        (module Inst_multi.Value)
+        (map (access add_multi_nonempty t_nonempty ~key ~data) ~f:Nonempty_list.to_list)
+        (access add_multi t_without_empty ~key ~data);
+      require_equal
+        (module Inst_multi.Value)
+        (map (access remove_multi_nonempty t_nonempty key) ~f:Nonempty_list.to_list)
+        (access remove_multi t_without_empty key))
+
   and map = map
   and mapi = mapi
 
@@ -1131,7 +1233,7 @@ module Test_transformers
         (t |> to_alist |> List.Assoc.map ~f:Int.succ |> create of_alist_exn);
       require_equal
         (module struct
-          type t = (Key.t * int) Instance.t [@@deriving equal, sexp_of]
+          type t = (Key.t * int) Instance.t [@@deriving equal ~localize, sexp_of]
         end)
         (mapi t ~f:(fun ~key ~data -> key, data))
         (t |> to_alist |> List.map ~f:(fun (k, v) -> k, (k, v)) |> create of_alist_exn))
@@ -1539,7 +1641,7 @@ module Test_transformers
       require_equal
         (module struct
           type t = Inst.Value.t * (Key.t * int) option * Inst.Value.t
-          [@@deriving equal, sexp_of]
+          [@@deriving equal ~localize, sexp_of]
         end)
         (access split t k)
         (let before, equal, after =
@@ -1558,7 +1660,7 @@ module Test_transformers
       let t = Inst.value t in
       require_equal
         (module struct
-          type t = Inst.Value.t * Inst.Value.t [@@deriving equal, sexp_of]
+          type t = Inst.Value.t * Inst.Value.t [@@deriving equal ~localize, sexp_of]
         end)
         (access split_le_gt t k)
         (let before, after =
@@ -1573,7 +1675,7 @@ module Test_transformers
       let t = Inst.value t in
       require_equal
         (module struct
-          type t = Inst.Value.t * Inst.Value.t [@@deriving equal, sexp_of]
+          type t = Inst.Value.t * Inst.Value.t [@@deriving equal ~localize, sexp_of]
         end)
         (access split_lt_ge t k)
         (let before, after =

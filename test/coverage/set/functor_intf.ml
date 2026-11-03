@@ -65,7 +65,8 @@ module Definitions = struct
   module type Elt = sig
     module Types : Types
 
-    type t = int Types.elt [@@deriving compare, equal, quickcheck, sexp_of]
+    type t = int Types.elt
+    [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
     include Comparable.Infix with type t := t
 
@@ -83,7 +84,8 @@ module Definitions = struct
     module Types : Types
     module Elt : Elt with module Types := Types
 
-    type t = (int, Int.comparator_witness) Types.t [@@deriving compare, equal, sexp_of]
+    type t = (int, Int.comparator_witness) Types.t
+    [@@deriving compare ~localize, equal ~localize, sexp_of]
 
     (** Pass a comparator to a creator function, if necessary. *)
     val create : (int, Int.comparator_witness, 'a) Types.create_options -> 'a
@@ -95,10 +97,10 @@ module Definitions = struct
   module type Generate = sig
     module Instance : Instance
 
-    type t [@@deriving equal, quickcheck, sexp_of]
+    type t [@@deriving equal ~localize, quickcheck, sexp_of]
 
     module Value : sig
-      type t = Instance.t [@@deriving compare, equal, sexp_of]
+      type t = Instance.t [@@deriving compare ~localize, equal ~localize, sexp_of]
     end
 
     val value : t -> Value.t

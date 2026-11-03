@@ -5,14 +5,14 @@ module E = struct
     { clz : 'int
     ; ctz : 'int
     }
-  [@@deriving compare, sexp_of]
+  [@@deriving compare ~localize, sexp_of ~stackify]
 end
 
-module type T = sig
-  type t [@@deriving sexp_of, compare]
+module type%template [@alloc a @ m = (heap_global, stack_local)] T = sig
+  type t [@@deriving (sexp_of [@alloc a]), (compare [@mode.explicit m])]
 
   val one : t
-  val ( lsl ) : local_ t -> int -> t
+  val ( lsl ) : t @ local -> int -> t
   val clz : t -> t
   val ctz : t -> t
   val num_bits : t
@@ -20,19 +20,20 @@ module type T = sig
   val to_int_trunc : t -> int
 end
 
-module Make (Int : T) = struct
+module%template [@alloc a @ m = (heap_global, stack_local)] Make (Int : T [@alloc a]) =
+struct
   let%expect_test "one-hot" =
     let clz_and_ctz int = { E.clz = Int.clz int; ctz = Int.ctz int } in
     let num_bits = Int.num_bits |> Int.to_int_trunc in
     for i = 0 to num_bits - 1 do
-      [%test_result: Int.t E.t]
+      ([%test_result: Int.t E.t] [@alloc a])
         ~expect:{ E.clz = num_bits - 1 - i |> Int.of_int_exn; ctz = i |> Int.of_int_exn }
         (clz_and_ctz Int.(one lsl i))
     done
   ;;
 end
 
-include Make (Nativeint)
+include Make [@alloc stack] (Nativeint)
 include Make (Int63)
 include Make (Int63.Private.Emul)
 

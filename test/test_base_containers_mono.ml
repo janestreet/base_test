@@ -29,7 +29,7 @@ let%expect_test "Hash_set" =
         include Int
 
         type t = (int[@generator Generator.small_strictly_positive_int])
-        [@@deriving compare, equal, quickcheck, sexp_of]
+        [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
       end
 
       include Hash_set

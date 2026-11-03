@@ -22,14 +22,14 @@ module Overlap = struct
   type t =
     | Allow_overlap
     | Disallow_overlap
-  [@@deriving equal, quickcheck, sexp_of]
+  [@@deriving equal ~localize, quickcheck, sexp_of]
 end
 
 module Side = struct
   type t =
     | Left
     | Right
-  [@@deriving equal, quickcheck, sexp_of]
+  [@@deriving equal ~localize, quickcheck, sexp_of]
 
   let select t (a, b) =
     match t with
@@ -71,7 +71,7 @@ module Constructor = struct
     | Split_lt_ge of Side.t * 'elt * 'elt t [@weight rec_weight]
     | Group_by of ('elt, int) Func.t * int * 'elt t [@weight rec_weight]
     | Remove_index of int * 'elt t [@weight rec_weight]
-  [@@deriving equal, quickcheck ~generator ~observer, sexp_of]
+  [@@deriving equal ~localize, quickcheck ~generator ~observer, sexp_of]
 
   let nested = function
     | Empty -> []
@@ -400,7 +400,7 @@ module Make (Instance : Instance) (Impl : Impl with module Types := Instance.Typ
 struct
   open Instance
 
-  type t = Elt.t Constructor.t [@@deriving equal, quickcheck]
+  type t = Elt.t Constructor.t [@@deriving equal ~localize, quickcheck]
 
   include Constructor.Make (Instance) (Impl)
 
@@ -443,8 +443,8 @@ module%test [@tags "64-bits-only"] _ : Impl = struct
 
       type t = (int, Int.comparator_witness) Set.t
 
-      let compare = Set.compare_direct
-      let equal = Set.equal
+      let%template[@mode m = (global, local)] compare = (Set.compare_direct [@mode m])
+      let%template[@mode m = (global, local)] equal = (Set.equal [@mode m])
       let sexp_of_t t = Set.sexp_of_m__t (module Elt) t
       let create f = f ((module Elt) : (_, _) Comparator.Module.t)
       let access f = f

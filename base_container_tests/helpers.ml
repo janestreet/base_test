@@ -10,7 +10,8 @@ let test_m (module Coverage : Coverage) =
 ;;
 
 module%template
-  [@alloc a @ l = (heap_global, stack_local)] Test
+  [@alloc a @ l = (heap_global, stack_local)]
+  Test
     (Config : Config)
     (Testable : Testable
   [@alloc a]) =
@@ -32,15 +33,22 @@ struct
 
   module Cont = struct
     type t = Nat.t Testable.Cont.t
-    [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+    [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
   end
 
   module Concat = struct
     type t = Cont.t Testable.Concat.t
 
-    let to_list = Testable.Concat.to_list
+    let%template[@alloc b = (heap, a)] to_list = (Testable.Concat.to_list [@alloc b])
     let of_list = Testable.Concat.of_list
-    let equal x y = [%equal: Cont.t list] (to_list x) (to_list y)
+
+    let%template[@alloc b @ m = (heap @ global, a @ l)] equal x y =
+      ([%equal: Cont.t list] [@mode.explicit m])
+        ((to_list [@alloc b]) x)
+        ((to_list [@alloc b]) y) [@nontail]
+    ;;
+
+    let%template[@mode l] equal = (equal [@alloc a])
     let sexp_of_t t = [%sexp_of: Cont.t list] (to_list t)
 
     open Base_quickcheck
@@ -254,7 +262,7 @@ struct
                    (inconsistency : (Sexp.t option[@sexp.option]))]) [@nontail]))
   ;;
 
-  let[@mode.explicit l = (global, l)] test_fn_nondeterministic
+  let%template[@mode l = (global, l)] test_fn_nondeterministic
     fn
     input_m
     output_m
@@ -277,7 +285,7 @@ struct
       ~expect_no_allocation
   ;;
 
-  let[@mode.explicit l = (global, l)] test_fn
+  let%template[@mode l = (global, l)] test_fn
     fn
     input_m
     output_m

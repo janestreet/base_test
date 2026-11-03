@@ -35,19 +35,21 @@ module Definitions = struct
     end
 
     module Cont : sig
-      type 'a t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      type 'a t [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
     end
 
     module Concat : sig
       type 'a t
 
-      val to_list : 'a t -> 'a list
+      val%template to_list : 'a t @ m -> 'a list @ m
+      [@@alloc __ @ m = (heap @ global, a @ l)]
+
       val of_list : 'a list -> 'a t
     end
   end
 
-  module type%template [@mode global] Output = sig
-    type t : any [@@deriving equal, sexp_of]
+  module type%template [@mode m = global] Output = sig
+    type t : any [@@deriving (equal [@mode.explicit m]), sexp_of]
   end
 
   module type%template [@mode local] Output = sig
@@ -69,7 +71,7 @@ module Definitions = struct
 
     module Cont : sig
       type t = int container
-      [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
     end
 
     (** We often want to test a function using a container, and some element to operate on
@@ -84,7 +86,7 @@ module Definitions = struct
     end
 
     module Concat : sig
-      type t = Cont.t concat [@@deriving equal, quickcheck, sexp_of]
+      type t = Cont.t concat [@@deriving (equal [@mode.explicit l]), quickcheck, sexp_of]
 
       val to_list : t -> Cont.t list
       val of_list : Cont.t list -> t
@@ -134,7 +136,7 @@ module Definitions = struct
       [@@mode li = (global, l), lo = (global, l)]
 
       (** Short-hand for [List.globalize Elt.globalize] *)
-      val elt_list_globalize : local_ Elt.t list -> Elt.t list
+      val elt_list_globalize : Elt.t list @ local -> Elt.t list
 
       val elt_smart_globalize : Elt.t @ li -> Elt.t @ lo
       [@@mode li = (global, l), lo = (global, l)]
@@ -181,7 +183,7 @@ module Definitions = struct
       -> expect:('input -> 'output)
       -> expect_no_allocation:bool
       -> unit
-    [@@mode.explicit l = (global, l)]
+    [@@mode l = (global, l)]
 
     (** Like [test_fn]; runs [expect_if_unpredictable] if the output for a container with
         unpredictable ordering cannot simply be compared against a reference value. *)
@@ -196,7 +198,7 @@ module Definitions = struct
       -> expect_if_unpredictable:('input -> 'output @ l -> bool)
       -> expect_no_allocation:bool
       -> unit
-    [@@mode.explicit l = (global, l)]
+    [@@mode l = (global, l)]
   end
 end
 
@@ -211,7 +213,8 @@ module type Helpers = sig
 
   (** Provides an instance of [Test]. Instantiate when implementing [Coverage]. *)
   module%template
-    [@alloc a @ l = (heap_global, stack_local)] Test
+    [@alloc a @ l = (heap_global, stack_local)]
+    Test
       (Config : Config)
       (Testable : Testable
     [@alloc a]) :

@@ -80,7 +80,7 @@ let%expect_test "fixed-size types" =
     |}]
 ;;
 
-let%expect_test ("64-bit platforms" [@tags "no-js", "64-bits-only"]) =
+let%expect_test ("64-bit platforms" [@tags "64-bits-only"]) =
   test (module Int) Large;
   [%expect
     {|
@@ -165,7 +165,7 @@ let%expect_test ("js_of_ocaml platforms (js)" [@tags "js-only", "no-wasm"]) =
     |}]
 ;;
 
-let%expect_test ("js_of_ocaml platforms (wasm)" [@tags "wasm-only"]) =
+let%expect_test ("js_of_ocaml platforms (wasm)" [@tags "wasm-only", "32-bits-only"]) =
   test (module Int) Large;
   [%expect
     {|

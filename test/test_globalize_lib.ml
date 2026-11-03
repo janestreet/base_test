@@ -141,8 +141,8 @@ let%expect_test "no sharing between globalized refs" =
   [%expect {| global |}]
 ;;
 
-external get : local_ 'a array -> int -> 'a = "%array_safe_get"
-external set : local_ 'a array -> int -> 'a -> unit = "%array_safe_set"
+external get : 'a array @ local -> int -> 'a = "%array_safe_get"
+external set : 'a array @ local -> int -> 'a -> unit = "%array_safe_set"
 
 let%expect_test "no sharing between globalized arrays" =
   let local_ a = [| "initial" |] in

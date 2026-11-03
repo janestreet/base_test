@@ -135,7 +135,7 @@ let%expect_test "get_hex_digit" =
       |}];
     require_equal
       (module struct
-        type t = (char * int) list [@@deriving equal, sexp_of]
+        type t = (char * int) list [@@deriving equal ~localize, sexp_of]
       end)
       (Char.all
        |> List.filter ~f:is_hex_digit

@@ -7,6 +7,36 @@ let%test _ =
   [%compare.equal: string t] (errorf_portable "foo %d" 13 ()) (error_string "foo 13")
 ;;
 
+let%expect_test "portable helpers" =
+  let open Or_error.Portable in
+  print_s [%sexp (errorf "foo %d" 13 : int t)];
+  [%expect {| (Error "foo 13") |}];
+  print_s [%sexp (of_exn (Failure "of_exn") : int t)];
+  [%expect {| (Error (Failure of_exn)) |}];
+  print_s [%sexp (of_exn_result (Error (Failure "of_exn_result")) : int t)];
+  [%expect {| (Error (Failure of_exn_result)) |}];
+  print_s [%sexp (try_with (fun () -> raise (Failure "try_with")) : int t)];
+  [%expect {| (Error (Failure try_with)) |}];
+  print_s [%sexp (try_with_join (fun () -> error_string "try_with_join") : int t)];
+  [%expect {| (Error try_with_join) |}]
+;;
+
+let%expect_test "portabilize" =
+  let error =
+    Error.of_thunk (fun () ->
+      print_endline "forcing error";
+      "error")
+  in
+  print_s [%sexp (portabilize (Error error) : int Portable.t)];
+  [%expect
+    {|
+    forcing error
+    (Error error)
+    |}];
+  print_s [%sexp (portabilize (Ok 13) : int Portable.t)];
+  [%expect {| (Ok 13) |}]
+;;
+
 let%test_unit _ =
   for i = 0 to 10 do
     assert (

@@ -87,7 +87,7 @@ let%expect_test _ =
   [%expect {| |}]
 ;;
 
-let%expect_test "stack overflow" =
+module%test Stack_overflow = struct
   (* [Info.of_list [info]] and [Info.of_lazy_t (lazy info)] produce an [Info.t] with the
      same sexp as the original. Ideally, deep nesting of these should not yield a stack
      overflow just to produce a small value. *)
@@ -95,31 +95,39 @@ let%expect_test "stack overflow" =
     match Word_size.word_size with
     | W64 -> 1_000_000
     | W32 -> 100_000
-  in
+  ;;
+
   let%template[@mode __ = (portable, nonportable)] test f ~wrap ~unwrap =
     let info = ref (wrap (Info.of_string "info")) in
     for _ = 1 to depth do
       info := f (unwrap !info) |> wrap
     done;
     print_s (Info.sexp_of_t (unwrap !info))
-  in
-  test (fun info -> Info.of_list [ info ]) ~wrap:Fn.id ~unwrap:Fn.id;
-  [%expect {| info |}];
-  test (fun info -> Info.of_lazy_t (lazy info)) ~wrap:Fn.id ~unwrap:Fn.id;
-  [%expect {| info |}];
-  test
-    (fun info -> Info.of_lazy_t (lazy (Info.of_list [ info ])))
-    ~wrap:Fn.id
-    ~unwrap:Fn.id;
-  [%expect {| info |}];
-  (test [@mode portable])
-    ~wrap:Modes.Portable.wrap
-    ~unwrap:Modes.Portable.unwrap
-    (fun info ->
-       Info.of_portable_lazy_t
-         (Portable_lazy.from_fun (fun () -> (Info.of_list [@mode portable]) [ info ])));
-  [%expect {| info |}]
-;;
+  ;;
+
+  let%expect_test "nonportable" =
+    test (fun info -> Info.of_list [ info ]) ~wrap:Fn.id ~unwrap:Fn.id;
+    [%expect {| info |}];
+    test (fun info -> Info.of_lazy_t (lazy info)) ~wrap:Fn.id ~unwrap:Fn.id;
+    [%expect {| info |}];
+    test
+      (fun info -> Info.of_lazy_t (lazy (Info.of_list [ info ])))
+      ~wrap:Fn.id
+      ~unwrap:Fn.id;
+    [%expect {| info |}]
+  ;;
+
+  [%%expect_test
+    let "portable" =
+      (test [@mode portable])
+        ~wrap:Modes.Portable.wrap
+        ~unwrap:Modes.Portable.unwrap
+        (fun info ->
+           Info.of_portable_lazy_t
+             (Portable_lazy.from_fun (fun () -> (Info.of_list [@mode portable]) [ info ])));
+      [%expect {| info |}]
+    ;;]
+end
 
 let%expect_test "cyclic info computation" =
   let info =

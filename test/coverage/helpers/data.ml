@@ -3,7 +3,7 @@ open Base_quickcheck
 open Overrides
 include Data_intf.Definitions
 
-module Int : S with type t = int = struct
+module%template Int : S [@mode local] with type t = int = struct
   type t = int [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
   let to_int = Fn.id

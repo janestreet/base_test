@@ -19,7 +19,7 @@ module Generate (Instance : Instance) (Impl : Impl with module Types := Instance
   include Constructor.Make (Instance) (Impl)
 
   module Value = struct
-    type t = Instance.t [@@deriving compare, equal, sexp_of]
+    type t = Instance.t [@@deriving compare ~localize, equal ~localize, sexp_of]
   end
 end
 
@@ -36,13 +36,15 @@ struct
   end
 
   module Elts = struct
-    type t = Elt.t list [@@deriving compare, equal, quickcheck, sexp_of]
+    type t = Elt.t list
+    [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
     let sample = Memo.memoize [%generator: t]
   end
 
   module Elts_result = struct
-    type t = (Elt.t list, Elt.t list) Result.t [@@deriving compare, equal, sexp_of]
+    type t = (Elt.t list, Elt.t list) Result.t
+    [@@deriving compare ~localize, equal ~localize, sexp_of]
   end
 
   module Inst_and_int = struct
@@ -63,17 +65,17 @@ struct
     let sample = Memo.memoize [%generator: t]
 
     module Value = struct
-      type t = Inst.Value.t * Inst.Value.t [@@deriving equal, sexp_of]
+      type t = Inst.Value.t * Inst.Value.t [@@deriving equal ~localize, sexp_of]
     end
   end
 
   module Inst_list = struct
-    type t = Inst.t list [@@deriving equal, quickcheck, sexp_of]
+    type t = Inst.t list [@@deriving equal ~localize, quickcheck, sexp_of]
 
     let sample = Memo.memoize [%generator: t]
 
     module Value = struct
-      type t = Inst.Value.t list [@@deriving equal, sexp_of]
+      type t = Inst.Value.t list [@@deriving equal ~localize, sexp_of]
     end
   end
 
@@ -411,6 +413,30 @@ module Test_accessors
   and elements = elements
   and to_list = to_list
   and to_array = to_array
+  and closest_elt = closest_elt
+
+  and () =
+    quickcheck_m (module Inst_and_elt) ~f:(fun (t, e) ->
+      let t = Inst.value t in
+      let list = to_list t in
+      let rev_list = List.rev list in
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Less_than e)
+        (List.find rev_list ~f:(fun elt -> Elt.( < ) elt e));
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Less_or_equal_to e)
+        (List.find rev_list ~f:(fun elt -> Elt.( <= ) elt e));
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Greater_or_equal_to e)
+        (List.find list ~f:(fun elt -> Elt.( >= ) elt e));
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Greater_than e)
+        (List.find list ~f:(fun elt -> Elt.( > ) elt e)))
+
   and to_sequence = to_sequence
 
   and () =
@@ -471,7 +497,7 @@ module Test_accessors
       require_equal
         (module struct
           type t = [ `Left of Elt.t | `Right of Elt.t | `Both of Elt.t * Elt.t ] list
-          [@@deriving equal, sexp_of]
+          [@@deriving equal ~localize, sexp_of]
         end)
         iter2_list
         expect)
@@ -492,7 +518,7 @@ module Test_accessors
       in
       require_equal
         (module struct
-          type t = (Elt.t, Elt.t) Either.t list [@@deriving equal, sexp_of]
+          type t = (Elt.t, Elt.t) Either.t list [@@deriving equal ~localize, sexp_of]
         end)
         actual
         expect)
@@ -550,7 +576,7 @@ module Test_accessors
         require_equal
           (module struct
             type t = (Elt.t, Elt.t) Sequence.Merge_with_duplicates_element.t list
-            [@@deriving equal, sexp_of]
+            [@@deriving equal ~localize, sexp_of]
           end)
           actual
           expect)
@@ -839,7 +865,8 @@ module Test_transformers
       let t = Inst.value t in
       require_equal
         (module struct
-          type t = Inst.Value.t * Elt.t option * Inst.Value.t [@@deriving equal, sexp_of]
+          type t = Inst.Value.t * Elt.t option * Inst.Value.t
+          [@@deriving equal ~localize, sexp_of]
         end)
         (access split t e)
         (let before, equal, after =
@@ -858,7 +885,7 @@ module Test_transformers
       let t = Inst.value t in
       require_equal
         (module struct
-          type t = Inst.Value.t * Inst.Value.t [@@deriving equal, sexp_of]
+          type t = Inst.Value.t * Inst.Value.t [@@deriving equal ~localize, sexp_of]
         end)
         (access split_le_gt t e)
         (let before, after =
@@ -873,7 +900,7 @@ module Test_transformers
       let t = Inst.value t in
       require_equal
         (module struct
-          type t = Inst.Value.t * Inst.Value.t [@@deriving equal, sexp_of]
+          type t = Inst.Value.t * Inst.Value.t [@@deriving equal ~localize, sexp_of]
         end)
         (access split_lt_ge t e)
         (let before, after =

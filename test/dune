@@ -5,13 +5,11 @@
   (flags -drop-tag js-only -drop-tag wasm-only))
  (libraries unboxed.float_u unboxed.int32_u unboxed.int64_u
    unboxed.nativeint_u base base_container_tests core.base_for_tests
-   base_test_helpers bignum.bigint expect_test_helpers_base expectable
-   portable sexp_grammar.validation sexplib stdio)
+   base_test_helpers basement bignum.bigint expect_test_helpers_base
+   expectable portable sexp_grammar.validation sexplib stdio unique)
+ (ocamlopt_flags :standard -O3)
  (flags :standard -w -67 -w -32)
  (preprocess
-  (pps ppx_jane -dont-apply=pipebang -no-check-on-extensions)))
-
-(alias
- (name runtest)
- (deps
-  (glob_files %{workspace_root}/lib/kindly_base/src/*.ml{,i})))
+  (pps ppx_int63_literal ppx_jane ppx_quick_test
+    -compare-require-explicit-locality -dont-apply=pipebang
+    -no-check-on-extensions)))

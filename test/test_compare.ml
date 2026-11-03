@@ -135,8 +135,8 @@ module%test [@name "lexicographic"] _ = struct
 
   let%expect_test "three comparisons" =
     Dynamic.with_temporarily sexp_style To_string_hum ~f:(fun () ->
-      let compare_first_three_elts a_1 b_1 =
-        Comparable.lexicographic
+      let%template compare_first_three_elts a_1 b_1 =
+        (Comparable.lexicographic [@mode local])
           (List.init 3 ~f:(fun i a b -> compare a.(i) b.(i)))
           a_1
           b_1

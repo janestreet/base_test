@@ -83,7 +83,7 @@ let%expect_test "[floor_log2]" =
   [%expect.output]
   |> String.substr_replace_all ~pattern:"Int64" ~with_:"Int"
   |> print_endline;
-  [%expect {| (raised ("[Int.floor_log2] got invalid input" 0)) |}];
+  [%expect {| (raised (Invalid_argument "Int.floor_log2: 0")) |}];
   floor_log2 one;
   [%expect {| 0 |}];
   for i = 1 to 8 do
@@ -187,5 +187,79 @@ let%expect_test ("inlining and resolve calls" [@tags "64-bits-only", "js-only"])
   let j = Int63.of_int (Sys.opaque_identity 1) in
   let i = (Int63.bit_and [@inlined always]) j j in
   print_s [%sexp (i : t)];
-  [%expect {| |}]
+  [%expect
+    {|
+    1
+    1
+    |}]
 ;;
+
+module%test Powers_of_2 = struct
+  let test ?cr (module I : Int.S) =
+    let open I in
+    Dynamic.with_temporarily sexp_style Sexp_style.simple_pretty ~f:(fun () ->
+      for i = 1 to 16 do
+        let base = of_int_exn i in
+        let ceil_log2 = ceil_log2 base in
+        let ceil_pow2 = ceil_pow2 base in
+        let floor_log2 = floor_log2 base in
+        let floor_pow2 = floor_pow2 base in
+        print_s
+          [%sexp
+            { base : t; ceil_log2 : t; ceil_pow2 : t; floor_log2 : t; floor_pow2 : t }];
+        require ?cr (is_pow2 floor_pow2);
+        require ?cr (is_pow2 ceil_pow2);
+        require ?cr (floor_pow2 <= base);
+        require ?cr (base <= ceil_pow2);
+        require_equal ?cr (module I) floor_pow2 (one lsl to_int_exn floor_log2);
+        require_equal ?cr (module I) ceil_pow2 (one lsl to_int_exn ceil_log2);
+        require ?cr (floor_log2 + one >= ceil_log2)
+      done)
+  ;;
+
+  let%expect_test "Int63" =
+    test (module Int63);
+    [%expect
+      {|
+      ((base 1) (ceil_log2 0) (ceil_pow2 1) (floor_log2 0) (floor_pow2 1))
+      ((base 2) (ceil_log2 1) (ceil_pow2 2) (floor_log2 1) (floor_pow2 2))
+      ((base 3) (ceil_log2 2) (ceil_pow2 4) (floor_log2 1) (floor_pow2 2))
+      ((base 4) (ceil_log2 2) (ceil_pow2 4) (floor_log2 2) (floor_pow2 4))
+      ((base 5) (ceil_log2 3) (ceil_pow2 8) (floor_log2 2) (floor_pow2 4))
+      ((base 6) (ceil_log2 3) (ceil_pow2 8) (floor_log2 2) (floor_pow2 4))
+      ((base 7) (ceil_log2 3) (ceil_pow2 8) (floor_log2 2) (floor_pow2 4))
+      ((base 8) (ceil_log2 3) (ceil_pow2 8) (floor_log2 3) (floor_pow2 8))
+      ((base 9) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 10) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 11) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 12) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 13) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 14) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 15) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 16) (ceil_log2 4) (ceil_pow2 16) (floor_log2 4) (floor_pow2 16))
+      |}]
+  ;;
+
+  let%expect_test "Int63.Private.Emul" =
+    test (module Int63.Private.Emul);
+    [%expect
+      {|
+      ((base 1) (ceil_log2 0) (ceil_pow2 1) (floor_log2 0) (floor_pow2 1))
+      ((base 2) (ceil_log2 1) (ceil_pow2 2) (floor_log2 1) (floor_pow2 2))
+      ((base 3) (ceil_log2 2) (ceil_pow2 4) (floor_log2 1) (floor_pow2 2))
+      ((base 4) (ceil_log2 2) (ceil_pow2 4) (floor_log2 2) (floor_pow2 4))
+      ((base 5) (ceil_log2 3) (ceil_pow2 8) (floor_log2 2) (floor_pow2 4))
+      ((base 6) (ceil_log2 3) (ceil_pow2 8) (floor_log2 2) (floor_pow2 4))
+      ((base 7) (ceil_log2 3) (ceil_pow2 8) (floor_log2 2) (floor_pow2 4))
+      ((base 8) (ceil_log2 3) (ceil_pow2 8) (floor_log2 3) (floor_pow2 8))
+      ((base 9) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 10) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 11) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 12) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 13) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 14) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 15) (ceil_log2 4) (ceil_pow2 16) (floor_log2 3) (floor_pow2 8))
+      ((base 16) (ceil_log2 4) (ceil_pow2 16) (floor_log2 4) (floor_pow2 16))
+      |}]
+  ;;
+end

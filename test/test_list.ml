@@ -1528,7 +1528,7 @@ module%test [@name "Assoc.group"] _ = struct
       in
       require_equal
         (module struct
-          type t = (String.Caseless.t * int) list [@@deriving equal, sexp_of]
+          type t = (String.Caseless.t * int) list [@@deriving equal ~localize, sexp_of]
         end)
         alist
         round_trip
@@ -1569,7 +1569,7 @@ module%test [@name "Assoc.sort_and_group"] _ = struct
       print_s [%sexp (multi : (string * int list) list)];
       require_equal
         (module struct
-          type t = (string * int list) list [@@deriving equal, sexp_of]
+          type t = (string * int list) list [@@deriving equal ~localize, sexp_of]
         end)
         multi
         (Map.to_alist (Map.of_alist_multi (module String.Caseless) alist))
@@ -2409,7 +2409,7 @@ let%expect_test "[Cartesian_product.apply] identity" =
   let test list =
     require_equal
       (module struct
-        type t = char list [@@deriving equal, sexp_of]
+        type t = char list [@@deriving equal ~localize, sexp_of]
       end)
       list
       (List.Cartesian_product.apply (return Fn.id) list)
@@ -2530,7 +2530,7 @@ let%expect_test "list sort, dedup" =
   let module Char_list = struct
     open Base_quickcheck
 
-    type t = char list [@@deriving equal, sexp_of]
+    type t = char list [@@deriving equal ~localize, sexp_of]
 
     let quickcheck_generator = Generator.list_non_empty Generator.char_alpha
 
@@ -2680,7 +2680,7 @@ module%test [@name "filter{,i}"] _ = struct
   open Base_quickcheck
 
   module Int_list = struct
-    type t = int list [@@deriving equal, sexp_of]
+    type t = int list [@@deriving equal ~localize, sexp_of]
   end
 
   let%expect_test "[filter]" =
@@ -2896,7 +2896,7 @@ let%expect_test "[map3]" =
 
 let%expect_test "[merge]" =
   let module Int_list = struct
-    type t = int list [@@deriving equal, sexp_of]
+    type t = int list [@@deriving equal ~localize, sexp_of]
   end
   in
   let test_int xs ys =
@@ -2975,7 +2975,7 @@ let%expect_test "[merge_all]" =
     in
     require_equal
       (module struct
-        type t = int list [@@deriving equal, sexp_of]
+        type t = int list [@@deriving equal ~localize, sexp_of]
       end)
       result
       reference
@@ -3058,7 +3058,8 @@ let%expect_test "[sub]" =
 
 let%expect_test "[of_iter]" =
   let module M = struct
-    type t = int list [@@deriving equal, quickcheck ~generator ~shrinker, sexp_of]
+    type t = int list
+    [@@deriving equal ~localize, quickcheck ~generator ~shrinker, sexp_of]
   end
   in
   quickcheck_m (module M) ~f:(fun list ->

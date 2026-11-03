@@ -16,12 +16,12 @@ open struct
 
   module Int_t = struct
     type t = (int[@generator Generator.small_positive_or_zero_int]) array
-    [@@deriving equal, globalize, quickcheck, sexp]
+    [@@deriving equal ~localize, globalize, quickcheck, sexp]
   end
 
   module Int_list = struct
     type t = (int[@generator Generator.small_positive_or_zero_int]) list
-    [@@deriving equal, globalize, quickcheck, sexp]
+    [@@deriving equal ~localize, globalize, quickcheck, sexp]
   end
 end
 
@@ -124,7 +124,7 @@ let%expect_test "merge" =
     print_s ([%sexp_of: int array] res);
     require_equal
       (module struct
-        type t = int list [@@deriving equal, sexp_of]
+        type t = int list [@@deriving equal ~localize, sexp_of]
       end)
       (to_list res)
       (List.merge (to_list a1) (to_list a2) ~compare:Int.compare)
@@ -152,12 +152,12 @@ let%expect_test "merge" =
 let%expect_test "merge with duplicates" =
   (* Testing that equal elements from a1 come before equal elements from a2 *)
   let test a1 a2 =
-    let compare a b = Comparable.lift Int.compare ~f:fst a b in
+    let%template compare a b = (Comparable.lift [@mode local]) Int.compare ~f:fst a b in
     let res = merge a1 a2 ~compare in
     print_s ([%sexp_of: (int * string) array] res);
     require_equal
       (module struct
-        type t = (int * string) list [@@deriving equal, sexp_of]
+        type t = (int * string) list [@@deriving equal ~localize, sexp_of]
       end)
       (to_list res)
       (List.merge (to_list a1) (to_list a2) ~compare)
@@ -236,7 +236,7 @@ module%test [@name "{min,max}_elt"] _ = struct
         let arr = of_list list in
         require_equal
           (module struct
-            type t = int option [@@deriving sexp_of, equal]
+            type t = int option [@@deriving sexp_of, equal ~localize]
           end)
           (arr_fun arr ~compare:(fun x y -> Int.compare x y))
           (list_fun list ~compare:(fun x y -> Int.compare x y)))
@@ -441,6 +441,18 @@ let%test_unit _ =
 let%test_unit _ = [%test_result: int option] (get_opt [| 3; 5; 1; 1; 2 |] 10) ~expect:None
 
 let%test_unit _ =
+  [%test_result: int Or_null.t] (get_or_null [| 3; 5; 1; 1; 2 |] 2) ~expect:(This 1)
+;;
+
+let%test_unit _ =
+  [%test_result: int Or_null.t] (get_or_null [| 3; 5; 1; 1; 2 |] (-1)) ~expect:Null
+;;
+
+let%test_unit _ =
+  [%test_result: int Or_null.t] (get_or_null [| 3; 5; 1; 1; 2 |] 10) ~expect:Null
+;;
+
+let%test_unit _ =
   List.iter
     ~f:(fun (l, expect) ->
       let t = of_list l in
@@ -599,7 +611,7 @@ let%test_unit _ =
 
 module%test [@name "permute"] _ = struct
   module Int_list = struct
-    type t = int list [@@deriving compare, sexp_of]
+    type t = int list [@@deriving compare ~localize, sexp_of]
 
     include (val Comparator.make ~compare ~sexp_of_t)
   end
@@ -797,7 +809,7 @@ let%expect_test "[chunks_of]" =
       let chunks_list = List.chunks_of list ~length in
       require_equal
         (module struct
-          type t = int array array [@@deriving equal, sexp_of]
+          type t = int array array [@@deriving equal ~localize, sexp_of]
         end)
         chunks_arr
         (List.map chunks_list ~f:of_list |> of_list)

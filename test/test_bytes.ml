@@ -31,6 +31,12 @@ module%test Blit =
     [%expect {| 0123456789 |}];
     Expect_test_helpers_base.require_does_raise (fun () ->
       ignore (Bytes.create_local (Sys.max_string_length + 1) : Bytes.t));
+    [%expect {| (Invalid_argument Bytes.create_local) |}];
+    Expect_test_helpers_base.require_does_raise (fun () ->
+      ignore (Bytes.create_local (-1) : Bytes.t));
+    [%expect {| (Invalid_argument Bytes.create_local) |}];
+    Expect_test_helpers_base.require_does_raise (fun () ->
+      ignore (Bytes.create_local Int.min_value : Bytes.t));
     [%expect {| (Invalid_argument Bytes.create_local) |}]
   ;;]
 

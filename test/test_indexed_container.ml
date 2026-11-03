@@ -26,36 +26,43 @@ module That_list : S = List
 
 let examples = [ []; [ 1 ]; [ 2; 3 ]; [ 4; 5; 1 ]; List.init 8 ~f:(fun i -> i * i) ]
 
-module type Output = sig
-  type t [@@deriving compare, sexp_of]
+module type%template [@mode m = (global, local)] Output = sig
+  type t [@@deriving (compare [@mode.explicit m]), sexp_of]
 end
 
 module Int_list = struct
-  type t = int list [@@deriving compare, sexp_of]
+  type t = int list [@@deriving compare ~localize, sexp_of]
 end
 
 module Int_pair_option = struct
-  type t = (int * int) option [@@deriving compare, sexp_of]
+  type t = (int * int) option [@@deriving compare ~localize, sexp_of]
 end
 
 module Int_option = struct
-  type t = int option [@@deriving compare, sexp_of]
+  type t = int option [@@deriving compare ~localize, sexp_of]
 end
 
-let check (type a) here examples ~actual ~expect (module Output : Output with type t = a) =
+let%template[@mode m = (global, local)] check
+  (type a)
+  here
+  examples
+  ~actual
+  ~expect
+  (module Output : Output with type t = a[@mode m])
+  =
   List.iter examples ~f:(fun example ->
     let actual = actual example in
     let expect = expect example in
     require
       ~here
-      (Output.compare actual expect = 0)
+      ((Output.compare [@mode m]) actual expect = 0)
       ~if_false_then_print_s:(lazy [%message (expect : Output.t)]);
     print_s [%sexp (actual : Output.t)])
 ;;
 
 let%expect_test "foldi" =
   let f i acc elt = if i % 2 = 0 then elt :: acc else acc in
-  check
+  (check [@mode local])
     [%here]
     examples
     (module Int_list)

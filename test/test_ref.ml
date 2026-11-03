@@ -31,7 +31,7 @@ let%expect_test "[sets_temporarily] without raise" =
       print_s [%message (r1 : int ref) (r2 : int ref)]);
     require_equal
       (module struct
-        type t = int * int [@@deriving equal, sexp_of]
+        type t = int * int [@@deriving equal ~localize, sexp_of]
       end)
       (!r1, !r2)
       (i1, i2)

@@ -13,14 +13,14 @@ module%template.portable Test_generic
 
        include Generic with type ('a, _, _) t := 'a t with type 'a elt := 'a Elt.t
 
-       val mem : 'a t -> 'a Elt.t -> equal:local_ ('a Elt.t -> 'a Elt.t -> bool) -> bool
+       val mem : 'a t -> 'a Elt.t -> equal:('a Elt.t -> 'a Elt.t -> bool) @ local -> bool
        val of_list : 'a Elt.t list -> [ `Ok of 'a t | `Skip_test ]
      end) : sig
     type 'a t [@@deriving sexp]
 
     include Generic with type ('a, _, _) t := 'a t
 
-    val mem : 'a t -> 'a Elt.t -> equal:local_ ('a Elt.t -> 'a Elt.t -> bool) -> bool
+    val mem : 'a t -> 'a Elt.t -> equal:('a Elt.t -> 'a Elt.t -> bool) @ local -> bool
   end
   with type 'a t := 'a Container.t
   with type 'a elt := 'a Elt.t =
@@ -159,7 +159,8 @@ struct
 end
 
 module%template.portable
-  [@modality p] Test_S1_allow_skipping_tests (Container : sig
+  [@modality p]
+  Test_S1_allow_skipping_tests (Container : sig
     type 'a t [@@deriving sexp]
 
     include Container.S1 with type 'a t := 'a t
@@ -179,7 +180,8 @@ struct
 end
 
 module%template.portable
-  [@modality p] Test_S1 (Container : sig
+  [@modality p]
+  Test_S1 (Container : sig
     type 'a t [@@deriving sexp]
 
     include Container.S1 with type 'a t := 'a t

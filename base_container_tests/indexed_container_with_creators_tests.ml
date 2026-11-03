@@ -5,7 +5,8 @@ open Expect_test_helpers_base
 
 (* Provides test coverage for [Indexed_container.Generic_with_creators]. *)
 module%template
-  [@alloc a_run @ l_run = (heap_global, stack_local)] Run
+  [@alloc a_run @ l_run = (heap_global, stack_local)]
+  Run
     (Config : Helpers.Config)
     (Impl : Indexed_container_generic_with_creators
   [@alloc a_run])
@@ -48,7 +49,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] init =
     let init_ = Impl.init [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       init_
       (module struct
         type t = Elt.t array [@@deriving quickcheck ~generator ~shrinker, sexp_of]
@@ -65,7 +66,7 @@ struct
 
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] mapi =
     let mapi_ = Impl.mapi [@mode li] [@alloc a] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       mapi_
       (module Cont_with_sample)
       (module Cont)
@@ -84,12 +85,12 @@ struct
       ~expect_if_unpredictable:(fun { container; sample } output ->
         let input = Sort.expect (Impl.to_list container) in
         let output = (sort_expect_list_of_cont [@alloc a]) output in
-        if [%equal: Elt.t list] input output
+        if ([%equal: Elt.t list] [@mode local]) input output
         then List.is_empty input || List.mem input sample ~equal:Elt.equal
         else
           List.existsi input ~f:(fun i x ->
             (not (Elt.equal x sample))
-            && [%equal: Elt.t list]
+            && ([%equal: Elt.t list] [@mode local])
                  output
                  (Sort.expect
                     (List.mapi input ~f:(fun j y -> if i = j then sample else y)))))
@@ -98,7 +99,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] filteri =
     let filteri_ = Impl.filteri [@alloc a] in
-    (test_fn_nondeterministic [@mode.explicit l])
+    (test_fn_nondeterministic [@mode l])
       filteri_
       (module Cont_with_sample)
       (module Cont)
@@ -116,16 +117,18 @@ struct
           |> Sort.expect
         in
         let output = (sort_expect_list_of_cont [@alloc a]) output in
-        [%equal: Elt.t list] input output
+        ([%equal: Elt.t list] [@mode local]) input output
         || List.existsi input ~f:(fun i _ ->
-          [%equal: Elt.t list] output (List.filteri input ~f:(fun j _ -> i <> j))))
+          ([%equal: Elt.t list] [@mode local])
+            output
+            (List.filteri input ~f:(fun j _ -> i <> j))))
       ~expect_no_allocation:(is_stack (alloc [@alloc a]));
     filteri_
 
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] filter_mapi
     =
     let filter_mapi_ = Impl.filter_mapi [@mode li] [@alloc a] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       filter_mapi_
       (module Cont_with_sample)
       (module Cont)
@@ -149,16 +152,18 @@ struct
           |> Sort.expect
         in
         let output = (sort_expect_list_of_cont [@alloc a]) output in
-        [%equal: Elt.t list] input output
+        ([%equal: Elt.t list] [@mode local]) input output
         || List.existsi input ~f:(fun i _ ->
-          [%equal: Elt.t list] output (List.filteri input ~f:(fun j _ -> i <> j))))
+          ([%equal: Elt.t list] [@mode local])
+            output
+            (List.filteri input ~f:(fun j _ -> i <> j))))
       ~expect_no_allocation:(is_stack (alloc [@alloc a]));
     filter_mapi_
 
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] concat_mapi
     =
     let concat_mapi_ = Impl.concat_mapi [@mode li] [@alloc a] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       concat_mapi_
       (module Cont)
       (module Cont)
@@ -185,7 +190,7 @@ struct
           let input = Sort.expect (Impl.to_list input) in
           let output = (sort_expect_list_of_cont [@alloc a]) output in
           List.existsi input ~f:(fun i _ ->
-            [%equal: Elt.t list]
+            ([%equal: Elt.t list] [@mode local])
               output
               (Sort.expect
                  (List.concat_mapi input ~f:(fun j elt ->
@@ -195,11 +200,12 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] partitioni_tf =
     let partitioni_tf_ = Impl.partitioni_tf [@alloc a] in
-    (test_fn_nondeterministic [@mode.explicit l])
+    (test_fn_nondeterministic [@mode l])
       partitioni_tf_
       (module Cont_with_sample)
       (module struct
-        type t = Cont.t * Cont.t [@@deriving (equal [@mode l]), (sexp_of [@alloc a])]
+        type t = Cont.t * Cont.t
+        [@@deriving (equal [@mode.explicit l]), (sexp_of [@alloc a])]
       end)
       ~name:[%loc.this_function_name]
       ~description:"partition elements <= sample after first element"
@@ -217,10 +223,10 @@ struct
         let less, more =
           List.partition_tf input ~f:(fun x -> Elt.compare x sample <= 0)
         in
-        [%equal: Elt.t list * Elt.t list] (a, b) (less, more)
+        ([%equal: Elt.t list * Elt.t list] [@mode local]) (a, b) (less, more)
         || List.existsi less ~f:(fun i one ->
           let others = List.filteri less ~f:(fun j _ -> i <> j) in
-          [%equal: Elt.t list * Elt.t list]
+          ([%equal: Elt.t list * Elt.t list] [@mode local])
             (a, b)
             (Sort.expect others, Sort.expect (one :: more))))
       ~expect_no_allocation:(is_stack (alloc [@alloc a]));
@@ -229,11 +235,12 @@ struct
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] partition_mapi
     =
     let partition_mapi_ = Impl.partition_mapi [@mode li] [@alloc a] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       partition_mapi_
       (module Cont_with_sample)
       (module struct
-        type t = Cont.t * Cont.t [@@deriving (equal [@mode lo]), (sexp_of [@alloc a])]
+        type t = Cont.t * Cont.t
+        [@@deriving (equal [@mode.explicit lo]), (sexp_of [@alloc a])]
       end)
       ~name:[%loc.this_function_name]
       ~description:"partition <= sample after first element"
@@ -253,10 +260,10 @@ struct
         let less, more =
           List.partition_tf input ~f:(fun x -> Elt.compare x sample <= 0)
         in
-        [%equal: Elt.t list * Elt.t list] (a, b) (less, more)
+        ([%equal: Elt.t list * Elt.t list] [@mode local]) (a, b) (less, more)
         || List.existsi less ~f:(fun i one ->
           let others = List.filteri less ~f:(fun j _ -> i <> j) in
-          [%equal: Elt.t list * Elt.t list]
+          ([%equal: Elt.t list * Elt.t list] [@mode local])
             (a, b)
             (Sort.expect others, Sort.expect (one :: more))))
       ~expect_no_allocation:(is_stack (alloc [@alloc a]));
@@ -337,12 +344,14 @@ let test_indexed_container_s0_with_creators
       module Simple = struct
         type phantom1 = Nothing.t
         type phantom2 = Nothing.t
-        type _ t = Impl.t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+
+        type _ t = Impl.t
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
 
         module Concat = struct
-          type 'a t = 'a list [@@deriving equal, quickcheck, sexp_of]
+          type 'a t = 'a list [@@deriving (equal [@mode.explicit l]), quickcheck, sexp_of]
 
-          let to_list = Fn.id
+          let%template[@alloc __ = (heap, a)] to_list = Fn.id
           let of_list = Fn.id
         end
       end
@@ -384,7 +393,7 @@ let test_indexed_container_s1_with_creators
         type phantom2 = Nothing.t
 
         type 'a t = 'a Impl.t
-        [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
 
         module Concat = Impl
       end

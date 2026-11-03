@@ -77,7 +77,7 @@ let test (module Tree : S) =
         type t
 
         val create : max_size:int -> t
-        val iter : t -> size:int -> f:local_ (Tree.t -> unit) -> unit
+        val iter : t -> size:int -> f:(Tree.t -> unit) @ local -> unit
       end = struct
         (* Indexed by size of tree. *)
         type 'a by_size = { by_size : 'a Queue.t } [@@unboxed]

@@ -4,7 +4,8 @@ open Expect_test_helpers_base
 
 (* Provides test coverage for [Indexed_container.Generic]. *)
 module%template
-  [@alloc a_run @ l_run = (heap_global, stack_local)] Run
+  [@alloc a_run @ l_run = (heap_global, stack_local)]
+  Run
     (Config : Helpers.Config)
     (Impl : Indexed_container_generic
   [@alloc a_run])
@@ -35,7 +36,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] foldi =
     let foldi_ = Impl.foldi [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       foldi_
       (module Cont)
       (module struct
@@ -66,11 +67,12 @@ struct
             | [] -> assert false
             | head :: tail -> if Elt.equal head elt then tail else head :: remove tail elt
           in
-          List.exists input ~f:(fun elt -> [%equal: Elt.t list] output (remove input elt))))
+          List.exists input ~f:(fun elt ->
+            ([%equal: Elt.t list] [@mode local]) output (remove input elt))))
       ~expect_no_allocation:(is_local (mode [@mode lo]));
     if Config.check_no_allocation
     then
-      (test_fn [@mode.explicit global])
+      (test_fn [@mode l_run])
         foldi_
         (module Cont_with_sample)
         (module Int)
@@ -87,7 +89,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] foldi_until =
     let foldi_until_ = Impl.foldi_until [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       foldi_until_
       (module Cont_with_sample)
       (module struct
@@ -138,7 +140,7 @@ struct
 
   and[@mode l = (global, l_run)] iteri =
     let iteri_ = Impl.iteri [@mode l] in
-    (test_fn_nondeterministic [@mode.explicit global])
+    test_fn_nondeterministic
       iteri_
       (module Cont)
       (module struct
@@ -163,12 +165,13 @@ struct
             | [] -> assert false
             | head :: tail -> if Elt.equal head elt then tail else head :: remove tail elt
           in
-          List.exists input ~f:(fun elt -> [%equal: Elt.t list] output (remove input elt))))
+          List.exists input ~f:(fun elt ->
+            ([%equal: Elt.t list] [@mode local]) output (remove input elt))))
       ~expect_no_allocation:false
     (* This test cannot check for allocation because we allocate the queue *);
     if Config.check_no_allocation
     then
-      (test_fn [@mode.explicit global])
+      (test_fn [@mode l])
         iteri_
         (module Cont_with_sample)
         (module Int)
@@ -186,7 +189,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] iteri_until =
     let iteri_until_ = Impl.iteri_until [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       iteri_until_
       (module Cont_with_sample)
       (module struct
@@ -232,7 +235,7 @@ struct
 
   and[@mode l = (global, l_run)] existsi =
     let existsi_ = Impl.existsi [@mode l] in
-    (test_fn_nondeterministic [@mode.explicit global])
+    (test_fn_nondeterministic [@mode l])
       existsi_
       (module Cont_with_sample)
       (module Bool)
@@ -253,7 +256,7 @@ struct
 
   and[@mode l = (global, l_run)] for_alli =
     let for_alli_ = Impl.for_alli [@mode l] in
-    (test_fn_nondeterministic [@mode.explicit global])
+    (test_fn_nondeterministic [@mode l])
       for_alli_
       (module Cont_with_sample)
       (module Bool)
@@ -274,7 +277,7 @@ struct
 
   and[@mode l = (global, l_run)] counti =
     let counti_ = Impl.counti [@mode l] in
-    (test_fn_nondeterministic [@mode.explicit global])
+    (test_fn_nondeterministic [@mode l])
       counti_
       (module Cont_with_sample)
       (module Int)
@@ -295,7 +298,7 @@ struct
 
   and[@mode l = (global, l_run)] findi =
     let findi_ = Impl.findi [@mode l] in
-    (test_fn_nondeterministic [@mode.explicit l])
+    (test_fn_nondeterministic [@mode l])
       findi_
       (module Cont_with_sample)
       (module struct
@@ -323,7 +326,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] find_mapi =
     let find_mapi_ = Impl.find_mapi [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       find_mapi_
       (module Cont_with_sample)
       (module struct
@@ -418,7 +421,9 @@ let test_indexed_container_s0
       module Simple = struct
         type phantom1 = Nothing.t
         type phantom2 = Nothing.t
-        type _ t = Impl.t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+
+        type _ t = Impl.t
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
       end
 
       type (_, _, _) t = Impl.t
@@ -456,7 +461,7 @@ let test_indexed_container_s1
         type phantom2 = Nothing.t
 
         type 'a t = 'a Impl.t
-        [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
       end
 
       type ('a, _, _) t = 'a Impl.t

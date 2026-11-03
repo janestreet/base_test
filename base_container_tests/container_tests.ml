@@ -4,7 +4,8 @@ open Expect_test_helpers_base
 
 (* Provides test coverage for [Container.Generic]. *)
 module%template
-  [@alloc a_run @ l_run = (heap_global, stack_local)] Run
+  [@alloc a_run @ l_run = (heap_global, stack_local)]
+  Run
     (Config : Helpers.Config)
     (Impl : Container_generic
   [@alloc a_run]) =
@@ -42,7 +43,7 @@ struct
 
   and length =
     let length_ = Impl.length in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       length_
       (module Cont)
       (module Int)
@@ -55,7 +56,7 @@ struct
 
   and is_empty =
     let is_empty_ = Impl.is_empty in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       is_empty_
       (module Cont)
       (module Bool)
@@ -68,7 +69,7 @@ struct
 
   and[@mode l = (global, l_run)] mem =
     let mem_ = Impl.mem [@mode l] in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       mem_
       (module Cont_with_sample)
       (module Bool)
@@ -83,7 +84,7 @@ struct
 
   and[@mode l = (global, l_run)] iter =
     let iter_ = Impl.iter [@mode l] in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       iter_
       (module Cont)
       (module struct
@@ -101,7 +102,7 @@ struct
     (* This test cannot check for allocation because we allocate the queue *);
     if Config.check_no_allocation
     then
-      (test_fn [@mode.explicit global])
+      (test_fn [@mode l_run])
         iter_
         (module Cont_with_sample)
         (module Int)
@@ -119,7 +120,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] iter_until =
     let iter_until_ = Impl.iter_until [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       iter_until_
       (module Cont_with_sample)
       (module struct
@@ -160,7 +161,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] fold =
     let fold_ = Impl.fold [@mode li lo] in
-    (test_fn [@mode.explicit lo])
+    (test_fn [@mode lo])
       fold_
       (module Cont)
       (module struct
@@ -179,7 +180,7 @@ struct
       ~expect_no_allocation:(is_local (mode [@mode lo]));
     if Config.check_no_allocation
     then
-      (test_fn [@mode.explicit global])
+      (test_fn [@mode l_run])
         fold_
         (module Cont_with_sample)
         (module Int)
@@ -195,7 +196,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] fold_result =
     let fold_result_ = Impl.fold_result [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       fold_result_
       (module Cont_with_sample)
       (module struct
@@ -235,7 +236,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] fold_until =
     let fold_until_ = Impl.fold_until [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       fold_until_
       (module Cont_with_sample)
       (module struct
@@ -283,7 +284,7 @@ struct
 
   and[@mode l = (global, l_run)] exists =
     let exists_ = Impl.exists [@mode l] in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       exists_
       (module Cont_with_sample)
       (module Bool)
@@ -298,7 +299,7 @@ struct
 
   and[@mode l = (global, l_run)] for_all =
     let for_all_ = Impl.for_all [@mode l] in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       for_all_
       (module Cont_with_sample)
       (module Bool)
@@ -313,7 +314,7 @@ struct
 
   and[@mode l = (global, l_run)] count =
     let count_ = Impl.count [@mode l] in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       count_
       (module Cont_with_sample)
       (module Int)
@@ -329,7 +330,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] sum =
     let sum_ = Impl.sum [@mode li lo] in
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       sum_
       (module Cont_with_sample)
       (module Int)
@@ -352,7 +353,7 @@ struct
 
   and[@mode l = (global, l_run)] find =
     let find_ = Impl.find [@mode l] in
-    (test_fn_nondeterministic [@mode.explicit l])
+    (test_fn_nondeterministic [@mode l])
       find_
       (module Cont_with_sample)
       (module struct
@@ -376,7 +377,7 @@ struct
 
   and[@mode li = (global, l_run), lo = (global, l_run)] find_map =
     let find_map_ = Impl.find_map [@mode li lo] in
-    (test_fn_nondeterministic [@mode.explicit lo])
+    (test_fn_nondeterministic [@mode lo])
       find_map_
       (module Cont_with_sample)
       (module struct
@@ -422,7 +423,7 @@ struct
        the same way. But most other functions are tested against one or the other of them,
        so this redundancy is probably fine, and there's not much of a better way to test
        these two. *)
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       to_list_
       (module Cont)
       (module struct
@@ -440,7 +441,7 @@ struct
     to_list_
 
   and to_array =
-    (test_fn [@mode.explicit global])
+    (test_fn [@mode l_run])
       Impl.to_array
       (module Cont)
       (module struct
@@ -458,7 +459,7 @@ struct
 
   and[@mode l = (global, l_run)] min_elt =
     let min_elt_ = Impl.min_elt [@mode l] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       min_elt_
       (module Cont)
       (module struct
@@ -480,7 +481,7 @@ struct
 
   and[@mode l = (global, l_run)] max_elt =
     let max_elt_ = Impl.max_elt [@mode l] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       max_elt_
       (module Cont)
       (module struct
@@ -557,7 +558,9 @@ let test_container_s0
       module Simple = struct
         type phantom1 = Nothing.t
         type phantom2 = Nothing.t
-        type _ t = Impl.t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+
+        type _ t = Impl.t
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
       end
 
       type (_, _, _) t = Impl.t
@@ -593,7 +596,9 @@ let test_container_s1
       module Simple = struct
         type phantom1 = Nothing.t
         type phantom2 = Nothing.t
-        type 'a t = 'a Impl.t [@@deriving equal, quickcheck, sexp_of]
+
+        type 'a t = 'a Impl.t
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
       end
 
       type ('a, _, _) t = 'a Impl.t

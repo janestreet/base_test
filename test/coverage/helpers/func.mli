@@ -1,1 +1,1 @@
-include Func_intf.Func
+include%template Func_intf.Func [@mode local]

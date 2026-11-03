@@ -13,7 +13,8 @@ include Indexed_container_with_creators_tests
     be separately tested. The coverage can be shared with other tests, just as the two
     inputs should share their coverage for testing [Container.Generic]. *)
 module%template
-  [@alloc a @ l = (heap_global, stack_local)] Run
+  [@alloc a @ l = (heap_global, stack_local)]
+  Run
     (Config : Helpers.Config)
     (Impl : Indexed_container_generic_with_creators
   [@alloc a])

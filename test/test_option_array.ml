@@ -38,7 +38,7 @@ include
     (struct
       include Option
 
-      let equal a b = Option.equal Bool.equal a b
+      let%template equal a b = (Option.equal [@mode local]) (Bool.equal [@mode local]) a b
       let of_bool b = Some b
     end)
     (struct

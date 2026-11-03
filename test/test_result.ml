@@ -5,7 +5,7 @@ module%test [@name "Result.Error"] _ = struct
   open Result.Error.Let_syntax
 
   module Int_or_string = struct
-    type t = (int, string) Result.t [@@deriving equal, sexp_of]
+    type t = (int, string) Result.t [@@deriving equal ~localize, sexp_of]
   end
 
   let%expect_test "return" =
@@ -84,11 +84,11 @@ end
 module%test [@name "Option.transpose_result and Result.transpose_opt are inverses"] _ =
 struct
   module Result_option = struct
-    type t = (string option, string) Result.t [@@deriving equal, sexp_of]
+    type t = (string option, string) Result.t [@@deriving equal ~localize, sexp_of]
   end
 
   module Option_result = struct
-    type t = (string, string) Result.t option [@@deriving equal, sexp_of]
+    type t = (string, string) Result.t option [@@deriving equal ~localize, sexp_of]
   end
 
   let%expect_test "inverses" =
@@ -109,5 +109,31 @@ struct
       Option.transpose_result
       [ Some (Ok "ok"); None; Some (Error "error") ];
     [%expect {| |}]
+  ;;
+end
+
+module%test [@name "Callback functions for [Result] can be given [@ once"] _ = struct
+  let consume (p : int ref @ unique) = !p
+
+  let%expect_test "map and bind with [@ once] callback" =
+    let (foo_once_1 @ once) () = () in
+    let (foo_once_2 @ once) () = Ok () in
+    ignore (Result.map (Ok ()) ~f:foo_once_1 : _);
+    ignore (Result.bind (Ok ()) ~f:foo_once_2 : _)
+  ;;
+
+  let%expect_test "map and bind infix operators with [@ once] callback" =
+    let open Result.Monad_infix in
+    let (foo_once_1 @ once) () = () in
+    let (foo_once_2 @ once) () = Ok () in
+    ignore (Ok () >>| foo_once_1 : _);
+    ignore (Ok () >>= foo_once_2 : _)
+  ;;
+
+  let%expect_test "map and bind capturing a unique variable" =
+    let x @ unique = { contents = 1 } in
+    ignore (Result.bind (Ok ()) ~f:(fun () -> Ok (consume x)) : _);
+    let y @ unique = { contents = 1 } in
+    ignore (Result.map (Ok ()) ~f:(fun () -> consume y) : _)
   ;;
 end

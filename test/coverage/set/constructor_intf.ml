@@ -9,7 +9,7 @@ module type Constructor = sig
   module Make
       (Instance : Instance)
       (Impl : Impl with module Types := Instance.Types) : sig
-    type t [@@deriving equal, quickcheck, sexp_of]
+    type t [@@deriving equal ~localize, quickcheck, sexp_of]
 
     (** Get the actual value the constructor represents. *)
     val value : t -> Instance.t

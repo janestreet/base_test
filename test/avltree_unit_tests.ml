@@ -6,7 +6,7 @@ module%test _ : module type of Avltree = struct
   module%template For_quickcheck = struct
     open struct
       module type S = sig
-        type t [@@deriving compare, quickcheck, sexp_of]
+        type t [@@deriving compare ~localize, quickcheck, sexp_of]
 
         include Comparator.S with type t := t
 
@@ -40,7 +40,7 @@ module%test _ : module type of Avltree = struct
         S
         with type t = int64
          and type comparator_witness = Int64.comparator_witness
-         and type unboxed := int64# = struct
+         and type unboxed := Basement.Int64_u.t = struct
         include Int64
 
         [%%rederive type t = int64 [@@deriving quickcheck]]
@@ -516,6 +516,23 @@ module%test _ : module type of Avltree = struct
              Queue.enqueue q (Key.box key, Data.box data));
            Queue.to_list q)
           ~expect:(Map.to_alist map))
+    ;;
+
+    let exists = (exists [@kind k v])
+
+    let%test_unit _ =
+      Base_quickcheck.Test.run_exn (module Constructors) ~f:(fun constructors ->
+        let t, map = (reify [@kind k v]) constructors in
+        Map.iteri map ~f:(fun ~key ~data:_ ->
+          (* Every key is findable by exist *)
+          [%test_result: bool]
+            ((exists [@kind k v]) t ~f:(fun ~key:k ~data:_ ->
+               Key.compare (Key.box k) key = 0))
+            ~expect:true);
+        (* Returns false if no item matches the predicate *)
+        [%test_result: bool]
+          ((exists [@kind k v]) t ~f:(fun ~key:_ ~data:_ -> false))
+          ~expect:false)
     ;;
 
     let mapi_inplace = (mapi_inplace [@kind k v])

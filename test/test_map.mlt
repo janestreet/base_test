@@ -73,7 +73,7 @@ Error: Signature mismatch in included functor's parameter:
          because it contains a usage (of the value toplevel_ref at file "test_map.mlt", line 56, characters 18-30)
          which is expected to be uncontended.
        However, the second is portable.
-       File "comparator_intf.ml", line 135, characters 6-63:
+       File "comparator_intf.ml", line 136, characters 6-63:
          Expected declaration
        File "test_map.mlt", line 55, characters 6-13: Actual declaration
 |}]

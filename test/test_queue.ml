@@ -506,7 +506,7 @@ module%test _ : module type of Queue = struct
       val create : unit -> 'a t
       val enqueue : 'a t -> 'a -> unit
       val dequeue : 'a t -> 'a option
-      val drain : 'a t -> f:local_ ('a -> unit) -> while_:local_ ('a -> bool) -> unit
+      val drain : 'a t -> f:('a -> unit) @ local -> while_:('a -> bool) @ local -> unit
       val to_array : 'a t -> 'a array
       val fold : 'a t -> init:'b -> f:('b -> 'a -> 'b) -> 'b
       val foldi : 'a t -> init:'b -> f:(int -> 'b -> 'a -> 'b) -> 'b
@@ -514,8 +514,8 @@ module%test _ : module type of Queue = struct
       val foldi_until
         :  'a t
         -> init:'b
-        -> f:local_ (int -> 'b -> 'a -> ('b, 'c) Continue_or_stop.t)
-        -> finish:local_ (int -> 'b -> 'c)
+        -> f:(int -> 'b -> 'a -> ('b, 'c) Continue_or_stop.t) @ local
+        -> finish:(int -> 'b -> 'c) @ local
         -> 'c
 
       val iter : 'a t -> f:('a -> unit) -> unit
@@ -523,8 +523,8 @@ module%test _ : module type of Queue = struct
 
       val iteri_until
         :  'a t
-        -> f:local_ (int -> 'a -> (unit, 'b) Continue_or_stop.t)
-        -> finish:local_ (int -> 'b)
+        -> f:(int -> 'a -> (unit, 'b) Continue_or_stop.t) @ local
+        -> finish:(int -> 'b) @ local
         -> 'b
 
       val length : 'a t -> int

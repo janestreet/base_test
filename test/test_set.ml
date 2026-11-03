@@ -1,7 +1,7 @@
 open! Import
 open! Set
 
-type int_set = Set.M(Int).t [@@deriving compare, equal, hash, sexp]
+type int_set = Set.M(Int).t [@@deriving compare ~localize, equal ~localize, hash, sexp]
 
 let%test _ = invariants (of_increasing_iterator_unchecked (module Int) ~len:20 ~f:Fn.id)
 let%test _ = invariants (Poly.of_increasing_iterator_unchecked ~len:20 ~f:Fn.id)
@@ -117,17 +117,23 @@ module%test [@name "element selection"] _ = struct
     ]
   ;;
 
-  module type S = sig
-    type t [@@deriving compare, sexp_of]
+  module type%template [@mode m = (global, local)] S = sig
+    type t [@@deriving (compare [@mode.explicit m]), sexp_of]
   end
 
-  let test1 (type a) (module M : S with type t = a) fn =
+  let%template[@mode m = (global, local)] test1
+    (type a)
+    (module M : S with type t = a[@mode m])
+    fn
+    =
     Dynamic.with_temporarily sexp_style Sexp_style.simple_pretty ~f:(fun () ->
       for len = 0 to 8 do
         let results =
           create ~len |> List.map ~f:(fun (set_name, set) -> fn set, set_name)
         in
-        match results |> List.Assoc.sort_and_group ~compare:[%compare: M.t] with
+        match
+          results |> List.Assoc.sort_and_group ~compare:([%compare: M.t] [@mode m])
+        with
         | [ (singleton, _) ] -> print_s [%message "" ~_:(len : int) ~_:(singleton : M.t)]
         | _ ->
           print_s
@@ -138,7 +144,7 @@ module%test [@name "element selection"] _ = struct
   let test2 fn_opt fn_exn =
     test1
       (module struct
-        type t = int Or_error.t [@@deriving compare, sexp_of]
+        type t = int Or_error.t [@@deriving compare ~localize, sexp_of]
       end)
       (fun set ->
         let option = fn_opt set in
@@ -218,9 +224,9 @@ module%test [@name "element selection"] _ = struct
 
   let%expect_test "find_map" =
     let f x = if x land 1 = 0 then Some (x asr 1) else None in
-    test1
+    (test1 [@mode local])
       (module struct
-        type t = int option [@@deriving compare, sexp_of]
+        type t = int option [@@deriving compare ~localize, sexp_of]
       end)
       (Set.find_map ~f);
     [%expect
@@ -240,7 +246,7 @@ module%test [@name "element selection"] _ = struct
   let%expect_test "group_by" =
     test1
       (module struct
-        type t = Set.M(Int).t list [@@deriving compare, sexp_of]
+        type t = Set.M(Int).t list [@@deriving compare ~localize, sexp_of]
       end)
       ((Set.group_by [@alert "-deprecated"]) ~equiv:(fun x y ->
          Int.popcount x = Int.popcount y));
@@ -276,7 +282,7 @@ module%test [@name "element selection"] _ = struct
 end
 
 (* This is flaky depending on runtime details. *)
-let%expect_test ("space" [@tags "no-js", "disabled"]) =
+let%expect_test ("space" [@tags "64-bits-only", "disabled"]) =
   let create ~length ~construction =
     let array = Array.init length ~f:Int.succ in
     match construction with

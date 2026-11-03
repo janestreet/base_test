@@ -142,7 +142,7 @@ type record =
   { mutable a : string Or_null.t
   ; mutable b : int Or_null.t
   }
-[@@deriving sexp_of, compare, equal]
+[@@deriving sexp_of, compare ~localize, equal ~localize]
 
 let%test_unit "[or_null] fields" =
   let x = Nullable.repr { a = Null; b = This 33 } in
@@ -185,7 +185,7 @@ module%test [@name "[new_mixed_block]"] _ = struct
       ; total_words : int
       ; scannable_words : int
       }
-    [@@deriving equal, sexp_of]
+    [@@deriving equal ~localize, sexp_of]
 
     let of_obj obj ~scannable_words_if_non_native =
       let tag = Obj.tag obj in
@@ -206,15 +206,15 @@ module%test [@name "[new_mixed_block]"] _ = struct
     ;;
   end
 
-  module type S = sig
-    type t [@@deriving equal, sexp_of]
+  module type%template [@mode m = (global, local)] S = sig
+    type t [@@deriving (equal [@mode.explicit m]), sexp_of]
 
     val copy : src:t -> dst:t -> unit
     val examples : t list
     val scannable_words_if_non_native : t -> int
   end
 
-  let test (module M : S) =
+  let%template[@mode m = (global, local)] test (module M : S[@mode m]) =
     Dynamic.with_temporarily sexp_style Sexp_style.simple_pretty ~f:(fun () ->
       List.iter M.examples ~f:(fun val1 ->
         let scannable_words_if_non_native = M.scannable_words_if_non_native val1 in
@@ -229,18 +229,18 @@ module%test [@name "[new_mixed_block]"] _ = struct
         require_equal (module Metadata) meta1 meta2;
         let val2 = Obj.Expert.obj obj2 in
         M.copy ~src:val1 ~dst:val2;
-        require_equal (module M) val1 val2))
+        (require_equal [@mode m]) (module M) val1 val2))
   ;;
 
   let%expect_test "all scannable" =
-    test
+    (test [@mode local])
       (module struct
         type t =
           { mutable a : float
           ; mutable b : bool
           ; mutable c : string
           }
-        [@@deriving equal, sexp_of]
+        [@@deriving equal ~localize, sexp_of]
 
         let scannable_words_if_non_native _ = 3
 
@@ -269,7 +269,7 @@ module%test [@name "[new_mixed_block]"] _ = struct
           ; mutable b : Int64_u.t
           ; mutable c : Int32_u.t
           }
-        [@@deriving equal, sexp_of]
+        [@@deriving equal ~localize, sexp_of]
 
         let scannable_words_if_non_native _ = 0
 
@@ -297,7 +297,7 @@ module%test [@name "[new_mixed_block]"] _ = struct
           ; mutable c : Int32_u.t
           ; mutable d : string
           }
-        [@@deriving equal, sexp_of]
+        [@@deriving equal ~localize, sexp_of]
 
         let scannable_words_if_non_native _ = 2
 
@@ -341,7 +341,7 @@ module%test [@name "[new_mixed_block]"] _ = struct
               ; mutable c : Int32_u.t
               ; mutable d : string
               }
-        [@@deriving equal, sexp_of]
+        [@@deriving equal ~localize, sexp_of]
 
         let scannable_words_if_non_native = function
           | A _ -> 3

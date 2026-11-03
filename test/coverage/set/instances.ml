@@ -9,7 +9,7 @@ module Make_elt
     (Cmp : sig
        val comparator : (int, Int.comparator_witness Types.cmp) Comparator.t
      end) : Functor.Elt with module Types := Types = struct
-  type t = int [@@deriving compare, equal, quickcheck, sexp_of]
+  type t = int [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
   type comparator_witness = Int.comparator_witness Types.cmp
 
   let comparator = Cmp.comparator
@@ -24,7 +24,7 @@ module Poly = struct
   module Types = Types.Poly
   module Elt = Make_elt (Types) (Comparator.Poly)
 
-  type t = Set.M(Elt).t [@@deriving compare, equal, sexp_of]
+  type t = Set.M(Elt).t [@@deriving compare ~localize, equal ~localize, sexp_of]
 
   let create x = x
   let access x = x
@@ -34,7 +34,7 @@ module Toplevel = struct
   module Types = Types.Toplevel
   module Elt = Make_elt (Types) (Int)
 
-  type t = Set.M(Elt).t [@@deriving compare, equal, sexp_of]
+  type t = Set.M(Elt).t [@@deriving compare ~localize, equal ~localize, sexp_of]
 
   let create f = f ((module Int) : _ Comparator.Module.t)
   let access x = x
@@ -46,8 +46,14 @@ module Tree = struct
 
   type t = (int, Int.comparator_witness) Types.t
 
-  let compare = Comparable.lift Toplevel.compare ~f:(Set.of_tree (module Elt))
-  let equal = Comparable.lift Toplevel.equal ~f:(Set.of_tree (module Elt))
+  let%template[@mode m = (global, local)] compare =
+    (Set.Using_comparator.Tree.compare_direct [@mode m]) ~comparator:Elt.comparator
+  ;;
+
+  let%template[@mode m = (global, local)] equal =
+    (Set.Using_comparator.Tree.equal [@mode m]) ~comparator:Elt.comparator
+  ;;
+
   let sexp_of_t t = Toplevel.sexp_of_t (Set.of_tree (module Elt) t)
   let create f = f ~comparator:Int.comparator
   let access f = f ~comparator:Int.comparator
@@ -57,7 +63,7 @@ module Using_comparator = struct
   module Types = Types.Using_comparator
   module Elt = Make_elt (Types) (Int)
 
-  type t = Set.M(Elt).t [@@deriving compare, equal, sexp_of]
+  type t = Set.M(Elt).t [@@deriving compare ~localize, equal ~localize, sexp_of]
 
   let create f = f ~comparator:Int.comparator
   let access x = x

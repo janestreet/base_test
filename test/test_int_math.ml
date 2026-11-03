@@ -277,7 +277,7 @@ module%test [@name "int rounding quickcheck tests"] _ = struct
       test_direction m ~dir)
   ;;
 
-  let%expect_test ("int" [@tags "no-js", "64-bits-only"]) =
+  let%expect_test ("int" [@tags "64-bits-only"]) =
     test
       (module struct
         include Int
@@ -345,7 +345,7 @@ module%test [@name "int rounding quickcheck tests"] _ = struct
       |}]
   ;;
 
-  let%expect_test ("nativeint" [@tags "no-js", "64-bits-only"]) =
+  let%expect_test ("nativeint" [@tags "64-bits-only"]) =
     test
       (module struct
         include Nativeint

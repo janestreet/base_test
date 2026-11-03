@@ -17,8 +17,8 @@ let%expect_test "[floor_log2]" =
   print_for examples floor_log2;
   [%expect
     {|
-    (-1 (Error ("[Nativeint.floor_log2] got invalid input" -1)))
-    (0 (Error ("[Nativeint.floor_log2] got invalid input" 0)))
+    (-1 (Error (Invalid_argument "Nativeint.floor_log2: -1")))
+    (0 (Error (Invalid_argument "Nativeint.floor_log2: 0")))
     (1 (Ok 0))
     (2 (Ok 1))
     (3 (Ok 1))
@@ -38,9 +38,9 @@ let%expect_test ("[floor_log2]" [@tags "64-bits-only"]) =
   [%expect
     {|
     (-9_223_372_036_854_775_808 (
-      Error ("[Nativeint.floor_log2] got invalid input" -9223372036854775808)))
+      Error (Invalid_argument "Nativeint.floor_log2: -9223372036854775808")))
     (-9_223_372_036_854_775_807 (
-      Error ("[Nativeint.floor_log2] got invalid input" -9223372036854775807)))
+      Error (Invalid_argument "Nativeint.floor_log2: -9223372036854775807")))
     (9_223_372_036_854_775_806 (Ok 62))
     (9_223_372_036_854_775_807 (Ok 62))
     |}]
@@ -50,8 +50,8 @@ let%expect_test "[ceil_log2]" =
   print_for examples ceil_log2;
   [%expect
     {|
-    (-1 (Error ("[Nativeint.ceil_log2] got invalid input" -1)))
-    (0 (Error ("[Nativeint.ceil_log2] got invalid input" 0)))
+    (-1 (Error (Invalid_argument "Nativeint.ceil_log2: -1")))
+    (0 (Error (Invalid_argument "Nativeint.ceil_log2: 0")))
     (1 (Ok 0))
     (2 (Ok 1))
     (3 (Ok 2))
@@ -71,9 +71,9 @@ let%expect_test ("[ceil_log2]" [@tags "64-bits-only"]) =
   [%expect
     {|
     (-9_223_372_036_854_775_808 (
-      Error ("[Nativeint.ceil_log2] got invalid input" -9223372036854775808)))
+      Error (Invalid_argument "Nativeint.ceil_log2: -9223372036854775808")))
     (-9_223_372_036_854_775_807 (
-      Error ("[Nativeint.ceil_log2] got invalid input" -9223372036854775807)))
+      Error (Invalid_argument "Nativeint.ceil_log2: -9223372036854775807")))
     (9_223_372_036_854_775_806 (Ok 63))
     (9_223_372_036_854_775_807 (Ok 63))
     |}]

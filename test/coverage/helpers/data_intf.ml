@@ -25,21 +25,21 @@ module type Data = sig
     include Definitions
   end
 
-  module Int : S with type t = int
+  module%template Int : S [@mode local] with type t = int
 
   (** Functor for [List] *)
   module%template [@mode m = (local, global)] List (T : With_equal [@mode m]) :
-    With_equal with type t = T.t list
+    With_equal [@mode m] with type t = T.t list
 
   (** Functor for [Or_error], ignoring error contents when comparing. *)
   module%template [@mode m = (local, global)] Or_error (T : With_equal [@mode m]) :
-    With_equal with type t = T.t Or_error.t
+    With_equal [@mode m] with type t = T.t Or_error.t
 
   (** Functor for [Option] *)
   module%template [@mode m = (local, global)] Option (T : With_equal [@mode m]) :
-    With_equal with type t = T.t option
+    With_equal [@mode m] with type t = T.t option
 
   (** Functor for pairs of the same data, with quickcheck generation. *)
   module%template [@mode m = (local, global)] Pair (T : With_quickcheck [@mode m]) :
-    With_quickcheck with type t = T.t * T.t
+    With_quickcheck [@mode m] with type t = T.t * T.t
 end

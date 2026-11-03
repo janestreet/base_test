@@ -336,7 +336,8 @@ module Using_comparator = struct
   (** functor for polymorphic definition - untested *)
 
   module%template.portable
-    [@modality p] Empty_without_value_restriction
+    [@modality p]
+    Empty_without_value_restriction
       (Cmp : Comparator.S1) =
   struct
     open Empty_without_value_restriction [@modality p] (Cmp)

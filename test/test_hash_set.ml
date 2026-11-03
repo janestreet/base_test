@@ -5,7 +5,7 @@ module%test _ = struct
 end
 
 module Int_hash_set = struct
-  type t = Hash_set.M(Int).t [@@deriving equal, sexp_of]
+  type t = Hash_set.M(Int).t [@@deriving equal ~localize, sexp_of]
 end
 
 module _ : module type of struct
@@ -73,7 +73,7 @@ end = struct
         module Simple = struct
           type phantom1
           type phantom2
-          type _ t = Hash_set.M(Int).t [@@deriving equal, sexp_of]
+          type _ t = Hash_set.M(Int).t [@@deriving equal ~localize, sexp_of]
 
           open Base_quickcheck
 
@@ -129,7 +129,7 @@ end = struct
       ~f:(fun elts ->
         require_equal
           (module struct
-            type t = Hash_set.M(Int).t [@@deriving equal, sexp_of]
+            type t = Hash_set.M(Int).t [@@deriving equal ~localize, sexp_of]
           end)
           (Hash_set.of_list (module Int) elts)
           (let set = Hash_set.create (module Int) in
@@ -163,7 +163,7 @@ end = struct
 
   module Test = struct
     type t = { inner : int [@hash.ignore] [@compare.ignore] }
-    [@@deriving compare, hash, sexp, fields ~getters]
+    [@@deriving compare ~localize, hash, sexp, fields ~getters]
 
     let create inner = { inner }
   end
@@ -321,7 +321,7 @@ end = struct
       require_equal (module Int_hash_set) keys (Hash_set.of_hashtbl_keys table);
       require_equal
         (module struct
-          type t = string Hashtbl.M(Int).t [@@deriving equal, sexp_of]
+          type t = string Hashtbl.M(Int).t [@@deriving equal ~localize, sexp_of]
         end)
         table
         (Hash_set.to_hashtbl keys ~f:(Hashtbl.find_exn table))
@@ -351,7 +351,7 @@ end = struct
       let result = Hash_set.inter s1 s2 in
       Hash_set.iter result ~f:(fun x -> assert (Hash_set.mem expect x));
       Hash_set.iter expect ~f:(fun x -> assert (Hash_set.mem result x));
-      let equal x y = 0 = String.compare x y in
+      let%template equal x y = 0 = (String.compare [@mode local]) x y in
       assert (List.equal equal (Hash_set.to_list result) (Hash_set.to_list expect));
       assert (Hash_set.length result = Hash_set.length expect);
       (* Make sure the sets are unmodified by the inter *)

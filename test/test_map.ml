@@ -28,7 +28,7 @@ let%test _ =
 let%test _ = invariants (Poly.of_increasing_iterator_unchecked ~len:20 ~f:(fun x -> x, x))
 let add12 t = add_exn t ~key:1 ~data:2
 
-type int_map = int Map.M(Int).t [@@deriving compare, hash, sexp]
+type int_map = int Map.M(Int).t [@@deriving compare ~localize, hash, sexp]
 
 let%expect_test "[add_exn] success" =
   print_s [%sexp (add12 (empty (module Int)) : int_map)];
@@ -322,7 +322,7 @@ module%test [@name "[symmetric_diff]"] _ = struct
   ;;
 
   module String_to_int_map = struct
-    type t = int Map.M(String).t [@@deriving equal, sexp_of]
+    type t = int Map.M(String).t [@@deriving equal ~localize, sexp_of]
 
     open Base_quickcheck
 
@@ -462,7 +462,7 @@ module%test [@name "[symmetric_diff]"] _ = struct
       require_compare_equal
         (module struct
           type t = (string, int) Symmetric_diff_element.t list
-          [@@deriving compare, sexp_of]
+          [@@deriving compare ~localize, sexp_of]
         end)
         (Map.symmetric_diff map1 map2 ~data_equal:Int.equal
          |> Sequence.fold ~init:[] ~f:(Fn.flip List.cons))
@@ -487,7 +487,7 @@ module%test [@name "of_alist_multi key equality"] _ = struct
     module T = struct
       type t = string * int [@@deriving sexp_of]
 
-      let compare = [%compare: string * _]
+      let%template compare = ([%compare: string * _] [@mode local])
     end
 
     include T
@@ -610,7 +610,7 @@ let create_random array =
 ;;
 
 (* This is flaky depending on runtime details. *)
-let%expect_test ("space" [@tags "no-js", "disabled"]) =
+let%expect_test ("space" [@tags "64-bits-only", "disabled"]) =
   let create ~length ~construction =
     let array = Array.init length ~f:(fun x -> x + 1, x + 1) in
     match construction with

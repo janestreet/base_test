@@ -5,7 +5,8 @@ open Expect_test_helpers_base
 
 (* Provides test coverage for [Container.Generic_with_creators]. *)
 module%template
-  [@alloc a_run @ l_run = (heap_global, stack_local)] Run
+  [@alloc a_run @ l_run = (heap_global, stack_local)]
+  Run
     (Config : Helpers.Config)
     (Impl : Container_generic_with_creators
   [@alloc a_run])
@@ -36,7 +37,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] of_list =
     let of_list_ = Impl.of_list [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       of_list_
       (module struct
         type t = Elt.t list [@@deriving quickcheck ~generator ~shrinker, sexp_of]
@@ -55,7 +56,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] of_array =
     let of_array_ = Impl.of_array [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       of_array_
       (module struct
         type t = Elt.t array [@@deriving quickcheck ~generator ~shrinker, sexp_of]
@@ -74,7 +75,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] append =
     let append_ = Impl.append [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       append_
       (module struct
         type t = Cont.t * Cont.t [@@deriving quickcheck ~generator ~shrinker, sexp_of]
@@ -89,7 +90,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] concat =
     let concat_ = Impl.concat [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       concat_
       (module Concat)
       (module Cont)
@@ -103,7 +104,7 @@ struct
 
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] map =
     let map_ = Impl.map [@mode li] [@alloc a] in
-    (test_fn [@mode.explicit lo])
+    (test_fn [@mode lo])
       map_
       (module Cont_with_sample)
       (module Cont)
@@ -124,7 +125,7 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] filter =
     let filter_ = Impl.filter [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       filter_
       (module Cont_with_sample)
       (module Cont)
@@ -144,7 +145,7 @@ struct
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] filter_map
     =
     let filter_map_ = Impl.filter_map [@mode li] [@alloc a] in
-    (test_fn [@mode.explicit lo])
+    (test_fn [@mode lo])
       filter_map_
       (module Cont_with_sample)
       (module Cont)
@@ -168,7 +169,7 @@ struct
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] concat_map
     =
     let concat_map_ = Impl.concat_map [@mode li] [@alloc a] in
-    (test_fn [@mode.explicit lo])
+    (test_fn [@mode lo])
       concat_map_
       (module Cont_with_sample)
       (module Cont)
@@ -188,11 +189,12 @@ struct
 
   and[@alloc a @ l = (heap @ global, a_run @ l_run)] partition_tf =
     let partition_tf_ = Impl.partition_tf [@alloc a] in
-    (test_fn [@mode.explicit l])
+    (test_fn [@mode l])
       partition_tf_
       (module Cont_with_sample)
       (module struct
-        type t = Cont.t * Cont.t [@@deriving (equal [@mode l]), (sexp_of [@alloc a])]
+        type t = Cont.t * Cont.t
+        [@@deriving (equal [@mode.explicit l]), (sexp_of [@alloc a])]
       end)
       ~name:[%loc.this_function_name]
       ~description:
@@ -210,11 +212,12 @@ struct
   and[@mode li = (global, l_run)] [@alloc a @ lo = (heap @ global, a_run @ l_run)] partition_map
     =
     let partition_map_ = Impl.partition_map [@mode li] [@alloc a] in
-    (test_fn [@mode.explicit lo])
+    (test_fn [@mode lo])
       partition_map_
       (module Cont_with_sample)
       (module struct
-        type t = Cont.t * Cont.t [@@deriving (equal [@mode lo]), (sexp_of [@alloc a])]
+        type t = Cont.t * Cont.t
+        [@@deriving (equal [@mode.explicit lo]), (sexp_of [@alloc a])]
       end)
       ~name:[%loc.this_function_name]
       ~description:
@@ -302,12 +305,12 @@ let test_container_s0_with_creators
         type phantom2 = Nothing.t
 
         type 'a t = Impl.t
-        [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
 
         module Concat = struct
-          type 'a t = 'a list [@@deriving equal, quickcheck, sexp_of]
+          type 'a t = 'a list [@@deriving equal ~localize, quickcheck, sexp_of]
 
-          let to_list = Fn.id
+          let%template[@alloc __ = (heap, a)] to_list = Fn.id
           let of_list = Fn.id
         end
       end
@@ -349,7 +352,7 @@ let test_container_s1_with_creators
         type phantom2 = Nothing.t
 
         type 'a t = 'a Impl.t
-        [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+        [@@deriving (equal [@mode.explicit l]), quickcheck, (sexp_of [@alloc a])]
 
         module Concat = Impl
       end

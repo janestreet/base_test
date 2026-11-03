@@ -59,7 +59,7 @@ module%test [@name "Sequence.merge*"] _ = struct
 
   let test_merge_semantics
     ~merge
-    ~(normalize_list : _ -> compare:local_ (_ -> _ -> _) -> _)
+    ~(normalize_list : _ -> compare:(_ -> _ -> _) @ local -> _)
     =
     Base_quickcheck.Test.run_exn
       (module struct

@@ -82,3 +82,34 @@ let%expect_test _ =
   Stdio.print_s [%sexp (f : float)];
   [%expect {| 0 |}]
 ;;
+
+(** An implementation of [Modes.Many_via_aliased] (except for the variance and the
+    mode-crossing behaviour on axes other than [many] and [aliased]) with no magic, but
+    additional overhead *)
+module _ : sig @@ portable
+  type !'a t : value mod many
+
+  val wrap : 'a @ once unique -> 'a t @ unique
+  val unwrap : 'a t @ unique -> 'a @ once unique
+end = struct
+  type 'a t = 'a Unique.Ref.t
+
+  let wrap = Unique.Ref.make
+  let unwrap = Unique.Ref.get
+end
+[@@warning "-32"]
+
+(** An implementation of [Modes.Aliased_via_many] (except for the mode-crossing behaviour
+    on axes other than [many] and [aliased]) with no magic, but additional overhead *)
+module _ : sig @@ portable
+  type !+'a t : value mod aliased
+
+  val wrap : 'a @ once unique -> 'a t @ once
+  val unwrap : 'a t @ once -> 'a @ once unique
+end = struct
+  type 'a t = unit -> 'a @ once unique
+
+  let wrap x @ once = fun () -> x
+  let unwrap x = x ()
+end
+[@@warning "-32"]

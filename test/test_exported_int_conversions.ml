@@ -1,7 +1,7 @@
 open! Import
 
-module type S = sig
-  type t [@@deriving compare, sexp_of]
+module type%template [@mode m = (global, local)] S = sig
+  type t [@@deriving (compare [@mode.explicit m]), sexp_of]
 
   val num_bits : t
   val min_value : t
@@ -10,32 +10,33 @@ module type S = sig
   val one : t
   val max_value : t
   val to_int64 : t -> int64
-  val shift_right : local_ t -> int -> t
+  val shift_right : t @ local -> int -> t
   val random : Random.State.t -> t -> t -> t
 end
 
-module I : S with type t = int = struct
+module%template [@mode m = (global, local)] I : S [@mode m] with type t = int = struct
   include Int
 
-  let random = Random.State.int_incl
+  let random = [%eta3 Random.State.int_incl]
 end
 
-module Native : S with type t = nativeint = struct
+module%template [@mode m = (global, local)] Native : S [@mode m] with type t = nativeint =
+struct
   include Nativeint
 
-  let random = Random.State.nativeint_incl
+  let random = [%eta3 Random.State.nativeint_incl]
 end
 
 module I32 : S with type t = int32 = struct
   include Int32
 
-  let random = Random.State.int32_incl
+  let random = [%eta3 Random.State.int32_incl]
 end
 
 module I64 : S with type t = int64 = struct
   include Int64
 
-  let random = Random.State.int64_incl
+  let random = [%eta3 Random.State.int64_incl]
 end
 
 module I63 : S with type t = Int63.t = struct
@@ -44,7 +45,11 @@ module I63 : S with type t = Int63.t = struct
   let random state lo hi = Int63.random_incl ~state lo hi
 end
 
-let iter (type a) (module M : S with type t = a) ~f =
+let%template[@mode m = (global, local)] iter
+  (type a)
+  (module M : S with type t = a[@mode m])
+  ~f
+  =
   let state = Random.State.make [| 0; 1; 2; 3; 4; 5 |] in
   List.iter ~f [ M.min_value; M.minus_one; M.zero; M.one; M.max_value ];
   for _ = 1 to 10_000 do
@@ -61,15 +66,15 @@ let iter (type a) (module M : S with type t = a) ~f =
 let try_with f x = Option.try_with (fun () -> f x)
 
 (* Checks that a conversion from [A.t] to [B.t] is total using [of] and [to]. *)
-let test_total
+let%template[@mode m = (global, local)] test_total
   (type a b)
-  (module A : S with type t = a)
-  (module B : S with type t = b)
+  (module A : S with type t = a[@mode m])
+  (module B : S with type t = b[@mode m])
   ~of_:b_of_a
   ~to_:a_to_b
   =
-  iter (module A) ~f:(fun a ->
-    require_compare_equal (module B) (b_of_a a) (a_to_b a);
+  (iter [@mode m]) (module A) ~f:(fun a ->
+    (require_compare_equal [@mode m]) (module B) (b_of_a a) (a_to_b a);
     require_compare_equal (module Int64) (A.to_int64 a) (B.to_int64 (b_of_a a)))
 ;;
 
@@ -81,10 +86,10 @@ let truncate int64 ~num_bits =
    [_exn] equivalents. In the case where the conversion fails, ensure that the value,
    converted to an [Int64.t] is outside the representable range of [B.t] converted to an
    [Int64.t] as well. *)
-let test_partial
+let%template[@mode m = (global, local)] test_partial
   (type a b)
-  (module A : S with type t = a)
-  (module B : S with type t = b)
+  (module A : S with type t = a[@mode m])
+  (module B : S with type t = b[@mode m])
   ~of_:b_of_a
   ~of_exn:b_of_a_exn
   ~of_trunc:b_of_a_trunc
@@ -93,19 +98,19 @@ let test_partial
   ~to_trunc:a_to_b_trunc
   =
   let module B_option = struct
-    type t = B.t option [@@deriving compare, sexp_of]
+    type t = B.t option [@@deriving (compare [@mode.explicit m]), sexp_of]
   end
   in
   let convertible_count = ref 0 in
-  iter (module A) ~f:(fun a ->
-    require_compare_equal (module B_option) (b_of_a a) (a_to_b a);
-    require_compare_equal (module B_option) (b_of_a a) (try_with b_of_a_exn a);
-    require_compare_equal (module B_option) (a_to_b a) (try_with a_to_b_exn a);
+  (iter [@mode m]) (module A) ~f:(fun a ->
+    (require_compare_equal [@mode m]) (module B_option) (b_of_a a) (a_to_b a);
+    (require_compare_equal [@mode m]) (module B_option) (b_of_a a) (try_with b_of_a_exn a);
+    (require_compare_equal [@mode m]) (module B_option) (a_to_b a) (try_with a_to_b_exn a);
     match b_of_a a with
     | Some b ->
       Int.incr convertible_count;
-      require_compare_equal (module B) b (b_of_a_trunc a);
-      require_compare_equal (module B) b (a_to_b_trunc a);
+      (require_compare_equal [@mode m]) (module B) b (b_of_a_trunc a);
+      (require_compare_equal [@mode m]) (module B) b (a_to_b_trunc a);
       require_compare_equal (module Int64) (A.to_int64 a) (B.to_int64 b)
     | None ->
       let num_bits = B.num_bits |> B.to_int64 |> Int64.to_int_trunc in
@@ -127,11 +132,15 @@ let test_partial
 ;;
 
 let%expect_test "int <-> nativeint" =
-  test_total (module I) (module Native) ~of_:Nativeint.of_int ~to_:Int.to_nativeint;
+  (test_total [@mode local])
+    (module I [@mode local])
+    (module Native [@mode local])
+    ~of_:Nativeint.of_int
+    ~to_:Int.to_nativeint;
   [%expect {| |}];
-  test_partial
-    (module Native)
-    (module I)
+  (test_partial [@mode local])
+    (module Native [@mode local])
+    (module I [@mode local])
     ~of_:Int.of_nativeint
     ~of_exn:Int.of_nativeint_exn
     ~of_trunc:Int.of_nativeint_trunc

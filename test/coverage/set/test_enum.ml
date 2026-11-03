@@ -183,7 +183,7 @@ open struct
   ;;
 
   module Int_list = struct
-    type t = int list [@@deriving equal, sexp_of]
+    type t = int list [@@deriving equal ~localize, sexp_of]
   end
 
   module Tree_and_enum_increasing = struct
@@ -405,7 +405,7 @@ let%expect_test "next2" =
   quickcheck_m (module Pair_of_enum) ~f:(fun (enum1, enum2) ->
     require_equal
       (module struct
-        type t = (int, int) Map.Merge_element.t list [@@deriving equal, sexp_of]
+        type t = (int, int) Map.Merge_element.t list [@@deriving equal ~localize, sexp_of]
       end)
       (Sequence.unfold ~init:(enum1, enum2) ~f:(fun (enum1, enum2) ->
          match enum1, enum2 with

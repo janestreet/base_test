@@ -65,7 +65,7 @@ let%expect_test "[choose], [choose_exn], [choose_randomly], [choose_randomly_exn
              : (_ * _) Or_error.t)
           ~choose_local:
             ([%globalize: (int Modes.Global.t * int Modes.Global.t) option]
-               [%template (Hashtbl.choose [@mode local]) t]
+               (Hashtbl.choose_local t)
              : (_ * _) option)
           ~choose_randomly:(Hashtbl.choose_randomly t : (_ * _) option)
           ~choose_randomly_exn:
@@ -216,7 +216,7 @@ let%expect_test "Hashtbl.change_or_null" =
 
 let%expect_test "smoke tests for templated versions" =
   let module%template StrO = struct
-    type t = string option [@@deriving compare, equal, sexp]
+    type t = string option [@@deriving compare ~localize, equal ~localize, sexp]
   end
   in
   let t = (Hashtbl.create [@kind float64 value_or_null]) (module Float_u) in

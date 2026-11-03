@@ -1,25 +1,28 @@
 open! Import
 
-module type T = sig
-  type t [@@deriving compare, quickcheck, sexp_of]
+module type%template [@alloc a @ m = (heap_global, stack_local)] T = sig
+  type t [@@deriving (compare [@mode.explicit m]), quickcheck, (sexp_of [@alloc a])]
 
   (* for implementing popcount_naive *)
 
   val zero : t
   val one : t
-  val ( + ) : local_ t -> local_ t -> t
-  val ( lsr ) : local_ t -> int -> t
-  val ( land ) : local_ t -> local_ t -> t
+  val ( + ) : t @ local -> t @ local -> t
+  val ( lsr ) : t @ local -> int -> t
+  val ( land ) : t @ local -> t @ local -> t
   val to_int_exn : t -> int
   val of_int_exn : int -> t
   val popcount : t -> t
 end
 
-module Make (Int : T) = struct
+module%template [@alloc a @ m = (heap_global, stack_local)] Make (Int : T [@alloc a]) =
+struct
   let popcount_naive (int : Int.t) : int =
     let open Int in
     let rec loop n count =
-      if Int.compare n zero <> 0 then loop (n lsr 1) (count + (n land one)) else count
+      if (Int.compare [@mode m]) n zero <> 0
+      then loop (n lsr 1) (count + (n land one))
+      else count
     in
     loop int zero |> to_int_exn
   ;;
@@ -27,11 +30,11 @@ module Make (Int : T) = struct
   let%test_unit _ =
     Base_quickcheck.Test.run_exn (module Int) ~f:(fun int ->
       let expect = popcount_naive int |> Int.of_int_exn in
-      [%test_result: Int.t] ~expect (Int.popcount int))
+      ([%test_result: Int.t] [@alloc a]) ~expect (Int.popcount int))
   ;;
 end
 
-include Make (struct
+include Make [@alloc stack] (struct
     include Int
 
     type t = int [@@deriving quickcheck]

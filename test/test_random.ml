@@ -28,19 +28,29 @@ let%test_unit _ =
   done
 ;;
 
-module type T = sig
-  type t [@@deriving compare, sexp_of]
+module type%template [@mode m = (global, local)] T = sig
+  type t [@@deriving (compare [@mode.explicit m]), sexp_of]
 end
 
 (* We test that [count] trials of [generate ()] all produce values between [min, max], and
    generate at least one value between [lo, hi]. *)
-let test (type t) here m count generate ~min ~max ~check_range:(lo, hi) =
-  let (module T : T with type t = t) = m in
+let%template[@mode m = (global, local)] test
+  (type t)
+  here
+  m
+  count
+  generate
+  ~min
+  ~max
+  ~check_range:(lo, hi)
+  =
+  let (module T : T with type t = t[@mode m]) = m in
   let between t ~lower_bound ~upper_bound =
-    T.compare t lower_bound >= 0 && T.compare t upper_bound <= 0
+    (T.compare [@mode m]) t lower_bound >= 0 && (T.compare [@mode m]) t upper_bound <= 0
   in
   let generated =
-    List.init count ~f:(fun _ -> generate ()) |> List.dedup_and_sort ~compare:T.compare
+    List.init count ~f:(fun _ -> generate ())
+    |> List.dedup_and_sort ~compare:(T.compare [@mode m])
   in
   require
     ~here
@@ -65,7 +75,7 @@ let test (type t) here m count generate ~min ~max ~check_range:(lo, hi) =
 ;;
 
 let%expect_test "float" =
-  test
+  (test [@mode local])
     [%here]
     (module Float)
     1_000

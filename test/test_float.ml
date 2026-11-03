@@ -985,6 +985,82 @@ module%test _ = struct
   let%test _ = must_succeed int63_round_nearest_portable_alloc_exn ~-.(2. **. 62.)
 end
 
+let%expect_test "int63_round_*: option vs or_null" =
+  let examples =
+    [ nan
+    ; infinity
+    ; neg_infinity
+    ; -1.5
+    ; -1.2
+    ; 1.2
+    ; 1.5
+    ; (* Highest int63 value representable as a float, equal to [Int63.max_value - 511] *)
+      one_ulp `Down (2. **. 62.)
+    ; 2. **. 62.
+    ; (* [Int63.min_value] - this one is exactly representable as a float *)
+      -.(2. **. 62.)
+    ; one_ulp `Down (-.(2. ** 62.))
+    ]
+  in
+  let test round_exn round_or_null =
+    List.iter examples ~f:(fun example ->
+      let or_null = round_or_null example in
+      let or_null_of_exn = Or_null.try_with (fun () -> round_exn example) in
+      print_s [%sexp (example : float), "=>", (or_null : Int63.t or_null)];
+      require_equal
+        (module struct
+          type t = Int63.t or_null [@@deriving equal ~localize, sexp_of]
+        end)
+        or_null
+        or_null_of_exn)
+  in
+  test int63_round_up_exn int63_round_up_or_null;
+  [%expect
+    {|
+    (NAN => ())
+    (INF => ())
+    (-INF => ())
+    (-1.5 => (-1))
+    (-1.2 => (-1))
+    (1.2 => (2))
+    (1.5 => (2))
+    (4.6116860184273874E+18 => (4_611_686_018_427_387_392))
+    (4.6116860184273879E+18 => ())
+    (-4.6116860184273879E+18 => (-4_611_686_018_427_387_904))
+    (-4.6116860184273889E+18 => ())
+    |}];
+  test int63_round_down_exn int63_round_down_or_null;
+  [%expect
+    {|
+    (NAN => ())
+    (INF => ())
+    (-INF => ())
+    (-1.5 => (-2))
+    (-1.2 => (-2))
+    (1.2 => (1))
+    (1.5 => (1))
+    (4.6116860184273874E+18 => (4_611_686_018_427_387_392))
+    (4.6116860184273879E+18 => ())
+    (-4.6116860184273879E+18 => (-4_611_686_018_427_387_904))
+    (-4.6116860184273889E+18 => ())
+    |}];
+  test int63_round_nearest_exn int63_round_nearest_or_null;
+  [%expect
+    {|
+    (NAN => ())
+    (INF => ())
+    (-INF => ())
+    (-1.5 => (-1))
+    (-1.2 => (-1))
+    (1.2 => (1))
+    (1.5 => (2))
+    (4.6116860184273874E+18 => (4_611_686_018_427_387_392))
+    (4.6116860184273879E+18 => ())
+    (-4.6116860184273879E+18 => (-4_611_686_018_427_387_904))
+    (-4.6116860184273889E+18 => ())
+    |}]
+;;
+
 let%test _ = round_nearest 3.6 = 4. && round_nearest (-3.6) = -4.
 
 (* The redefinition of [sexp_of_t] in float.ml assumes sexp conversion uses E rather than
@@ -1302,6 +1378,6 @@ let%expect_test "log" =
 
 let%expect_test "float comparisons permit both local and global arguments" =
   let (_ : float -> float -> bool) = Float.( < ) in
-  let (_ : local_ float -> local_ float -> bool) = Float.( < ) in
+  let (_ : float @ local -> float @ local -> bool) = Float.( < ) in
   [%expect {| |}]
 ;;

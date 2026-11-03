@@ -408,7 +408,7 @@ let%expect_test "or_null elements" =
 ;;
 
 (* Invariant tests *)
-module%test [@tags "no-js"] _ : module type of struct
+module%test [@tags "64-bits-only"] _ : module type of struct
   include Uniform_array
 end = struct
   type ('a : value_or_null) t = 'a Uniform_array.t

@@ -212,7 +212,7 @@ open struct
   ;;
 
   module Int_alist = struct
-    type t = (int * int) list [@@deriving equal, sexp_of]
+    type t = (int * int) list [@@deriving equal ~localize, sexp_of]
   end
 
   module Tree_and_enum_increasing = struct
@@ -490,7 +490,7 @@ let%expect_test "split_n" =
         (Int.clamp_exn pos ~min:0 ~max:(Enum.length enum));
       require_equal
         (module struct
-          type t = (int * int) list [@@deriving equal, sexp_of]
+          type t = (int * int) list [@@deriving equal ~localize, sexp_of]
         end)
         (to_list_increasing prefix @ to_list_increasing suffix)
         (to_list_increasing enum))
@@ -505,7 +505,8 @@ let%expect_test "next2" =
   quickcheck_m (module Pair_of_enum) ~f:(fun (enum1, enum2) ->
     require_equal
       (module struct
-        type t = (int * (int, int) Map.Merge_element.t) list [@@deriving equal, sexp_of]
+        type t = (int * (int, int) Map.Merge_element.t) list
+        [@@deriving equal ~localize, sexp_of]
       end)
       (Sequence.unfold ~init:(enum1, enum2) ~f:(fun (enum1, enum2) ->
          match enum1, enum2 with
@@ -693,14 +694,14 @@ let%expect_test "split2" =
           ~if_false_then_print_s;
         require_equal
           (module struct
-            type t = (int * int) list [@@deriving equal, sexp_of]
+            type t = (int * int) list [@@deriving equal ~localize, sexp_of]
           end)
           (to_list_increasing prefix1 @ to_list_increasing suffix1)
           (to_list_increasing enum1)
           ~if_false_then_print_s;
         require_equal
           (module struct
-            type t = (int * int) list [@@deriving equal, sexp_of]
+            type t = (int * int) list [@@deriving equal ~localize, sexp_of]
           end)
           (to_list_increasing prefix2 @ to_list_increasing suffix2)
           (to_list_increasing enum2)

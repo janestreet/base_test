@@ -85,7 +85,7 @@ let%expect_test "to_list and to_list_rev" =
     let list = to_list s in
     require_equal
       (module struct
-        type t = char list [@@deriving equal, sexp_of]
+        type t = char list [@@deriving equal ~localize, sexp_of]
       end)
       (to_list_rev s)
       (List.rev list);
@@ -97,6 +97,40 @@ let%expect_test "to_list and to_list_rev" =
   [%expect {| (b l a d d e r w r a c k) |}]
 ;;
 
+module%test [@name "to_iarray / of_iarray"] _ = struct
+  let%expect_test "String of iarray example" =
+    let iarray = Iarray.of_list [ 'h'; 'e'; 'l'; 'l'; 'o' ] in
+    print_s [%sexp (of_iarray iarray : string)];
+    [%expect {| hello |}]
+  ;;
+
+  let%expect_test "of_iarray preserves length" =
+    let%quick_test prop (iarray : char iarray) =
+      require_equal (module Int) (iarray |> of_iarray |> length) (Iarray.length iarray)
+    in
+    [%expect {| |}]
+  ;;
+
+  let%expect_test "of_iarray round trips through strings" =
+    let%quick_test prop (iarray : char iarray) =
+      require_equal
+        (module struct
+          type t = char iarray [@@deriving sexp, equal ~localize]
+        end)
+        (iarray |> of_iarray |> to_iarray)
+        iarray
+    in
+    [%expect {| |}]
+  ;;
+
+  let%expect_test "string round trips through iarrays" =
+    let%quick_test prop (string : string) =
+      require_equal (module String) (string |> to_iarray |> of_iarray) string
+    in
+    [%expect {| |}]
+  ;;
+end
+
 let%expect_test "[of_sequence] and [to_sequence]" =
   let test t =
     let seq = to_sequence t in
@@ -104,7 +138,7 @@ let%expect_test "[of_sequence] and [to_sequence]" =
     require_equal (module String) (of_sequence seq) t;
     require_equal
       (module struct
-        type t = char Sequence.t [@@deriving equal, sexp_of]
+        type t = char Sequence.t [@@deriving equal ~localize, sexp_of]
       end)
       seq
       (Sequence.of_list (to_list t))
@@ -1004,12 +1038,12 @@ let%expect_test "split" =
   [%expect {| ("") |}];
   test "c";
   [%expect {| ("" "") |}];
-  test "fooc";
-  [%expect {| (foo "") |}];
-  test "cfoo";
-  [%expect {| ("" foo) |}];
-  test "cfooc";
-  [%expect {| ("" foo "") |}];
+  test "zzzc";
+  [%expect {| (zzz "") |}];
+  test "czzz";
+  [%expect {| ("" zzz) |}];
+  test "czzzc";
+  [%expect {| ("" zzz "") |}];
   test "bocci ball";
   [%expect {| (bo "" "i ball") |}]
 ;;
@@ -1022,14 +1056,14 @@ let%expect_test "split_on_chars" =
   [%expect {| ("" "") |}];
   test "chr" ~on:[ 'h'; 'c'; 'r' ];
   [%expect {| ("" "" "" "") |}];
-  test "fooc" ~on:[ 'c' ];
-  [%expect {| (foo "") |}];
-  test "fooc" ~on:[ 'c'; 'o' ];
+  test "zzzc" ~on:[ 'c' ];
+  [%expect {| (zzz "") |}];
+  test "fzzc" ~on:[ 'c'; 'z' ];
   [%expect {| (f "" "" "") |}];
-  test "cfoo" ~on:[ 'c' ];
-  [%expect {| ("" foo) |}];
-  test "cfoo" ~on:[ 'c'; 'f' ];
-  [%expect {| ("" "" oo) |}];
+  test "czzz" ~on:[ 'c' ];
+  [%expect {| ("" zzz) |}];
+  test "cfzz" ~on:[ 'c'; 'f' ];
+  [%expect {| ("" "" zz) |}];
   test "bocci ball" ~on:[ 'c' ];
   [%expect {| (bo "" "i ball") |}];
   test "bocci ball" ~on:[ 'c'; ' '; 'i' ];
@@ -1279,7 +1313,7 @@ let%expect_test "chop_prefix" =
     let result = Or_error.try_with (fun () -> chop_prefix_exn s ~prefix) in
     require_equal
       (module struct
-        type t = string option [@@deriving equal, sexp_of]
+        type t = string option [@@deriving equal ~localize, sexp_of]
       end)
       (chop_prefix s ~prefix)
       (Or_error.ok result);
@@ -1303,7 +1337,7 @@ let%expect_test "chop_suffix" =
     let result = Or_error.try_with (fun () -> chop_suffix_exn s ~suffix) in
     require_equal
       (module struct
-        type t = string option [@@deriving equal, sexp_of]
+        type t = string option [@@deriving equal ~localize, sexp_of]
       end)
       (chop_suffix s ~suffix)
       (Or_error.ok result);
@@ -1508,7 +1542,7 @@ module%test [@name "functions that raise Not_found_s"] _ = struct
       let exn_result = Or_error.try_with (fun () -> lsplit2_exn s ~on:':') in
       require_equal
         (module struct
-          type t = (string * string) option [@@deriving equal, sexp_of]
+          type t = (string * string) option [@@deriving equal ~localize, sexp_of]
         end)
         option_result
         (Or_error.ok exn_result);
@@ -1532,7 +1566,7 @@ module%test [@name "functions that raise Not_found_s"] _ = struct
       let exn_result = Or_error.try_with (fun () -> rsplit2_exn s ~on:':') in
       require_equal
         (module struct
-          type t = (string * string) option [@@deriving equal, sexp_of]
+          type t = (string * string) option [@@deriving equal ~localize, sexp_of]
         end)
         option_result
         (Or_error.ok exn_result);
@@ -1961,7 +1995,7 @@ module%test Index_from = struct
       | Found
       | Not_found
       | Out_of_bounds
-    [@@deriving equal, sexp_of]
+    [@@deriving equal ~localize, sexp_of]
   end
 
   module Fn = struct
@@ -2100,7 +2134,7 @@ module%test Index_from = struct
   ;;
 
   (* For each function, test a variety of strings, characters, and indices to search. *)
-  let%expect_test ("index_from out-of-bounds" [@tags "no-js", "no-wasm"]) =
+  let%expect_test ("index_from out-of-bounds" [@tags "64-bits-only"]) =
     List.iter Fn.all ~f:(fun fn ->
       require_does_not_raise (fun () ->
         List.iter example_strings ~f:(fun string ->

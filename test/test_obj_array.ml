@@ -2,7 +2,7 @@ open! Import
 module Obj_array = Base.Exported_for_specific_uses.Obj_array
 
 (* Invariant tests *)
-module%test [@tags "no-js"] _ : module type of struct
+module%test [@tags "64-bits-only"] _ : module type of struct
   include Obj_array
 end = struct
   type t = Obj_array.t

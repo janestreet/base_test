@@ -1,7 +1,7 @@
 open! Base
 open Base_test_coverage_helpers
 
-module Definitions = struct
+module%template Definitions = struct
   (** The types that distinguish instances of
       [Map.Creators_and_accessors_and_transformers_generic]. *)
   module type Types = sig
@@ -67,7 +67,8 @@ module Definitions = struct
   module type Key = sig
     module Types : Types
 
-    type t = int Types.key [@@deriving compare, equal, quickcheck, sexp_of]
+    type t = int Types.key
+    [@@deriving compare ~localize, equal ~localize, quickcheck, sexp_of]
 
     include Comparable.Infix with type t := t
 
@@ -86,7 +87,7 @@ module Definitions = struct
     module Key : Key with module Types := Types
 
     type 'a t = (int, 'a, Int.comparator_witness) Types.t
-    [@@deriving compare, equal, sexp_of]
+    [@@deriving compare ~localize, equal ~localize, sexp_of]
 
     (** Pass a comparator to a creator function, if necessary. *)
     val create : (int, Int.comparator_witness, 'a) Types.create_options -> 'a
@@ -97,19 +98,19 @@ module Definitions = struct
 
   module type Generate = sig
     module Instance : Instance
-    module Data : Data.S
+    module Data : Data.S [@mode local]
 
-    type t [@@deriving equal, quickcheck, sexp_of]
+    type t [@@deriving equal ~localize, quickcheck, sexp_of]
 
     module Value : sig
-      type t = Data.t Instance.t [@@deriving compare, equal, sexp_of]
+      type t = Data.t Instance.t [@@deriving compare ~localize, equal ~localize, sexp_of]
     end
 
     val value : t -> Value.t
   end
 end
 
-module type Functor = sig
+module type%template Functor = sig
   include module type of struct
     include Definitions
   end
@@ -135,5 +136,6 @@ module type Functor = sig
   module Generate
       (Instance : Instance)
       (Impl : Impl with module Types := Instance.Types)
-      (Data : Data.S) : Generate with module Instance := Instance and module Data := Data
+      (Data : Data.S
+    [@mode local]) : Generate with module Instance := Instance and module Data := Data
 end

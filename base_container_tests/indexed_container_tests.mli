@@ -11,7 +11,8 @@ include Indexed_container_tests
     tested using [Container_tests.Run], and the coverage may then be shared with this and
     other tests of signature extensions. *)
 module%template
-  [@alloc a @ l = (heap_global, stack_local)] Run
+  [@alloc a @ l = (heap_global, stack_local)]
+  Run
     (Config : Helpers.Config)
     (Impl : Indexed_container_generic
   [@alloc a])
