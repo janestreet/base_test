@@ -394,9 +394,9 @@ module Test_accessors
       require_equal (module Elts_result) result expect)
 
   and equal = equal
-  and equal__local = equal__local
+  and equal__local = equal
   and compare_direct = compare_direct
-  and compare_direct__local = compare_direct__local
+  and compare_direct__local = compare_direct
 
   and () =
     quickcheck_m (module Inst_and_inst) ~f:(fun (a, b) ->
@@ -411,6 +411,30 @@ module Test_accessors
   and elements = elements
   and to_list = to_list
   and to_array = to_array
+  and closest_elt = closest_elt
+
+  and () =
+    quickcheck_m (module Inst_and_elt) ~f:(fun (t, e) ->
+      let t = Inst.value t in
+      let list = to_list t in
+      let rev_list = List.rev list in
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Less_than e)
+        (List.find rev_list ~f:(fun elt -> Elt.( < ) elt e));
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Less_or_equal_to e)
+        (List.find rev_list ~f:(fun elt -> Elt.( <= ) elt e));
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Greater_or_equal_to e)
+        (List.find list ~f:(fun elt -> Elt.( >= ) elt e));
+      require_equal
+        (module Data.Option (Elt))
+        (access closest_elt t `Greater_than e)
+        (List.find list ~f:(fun elt -> Elt.( > ) elt e)))
+
   and to_sequence = to_sequence
 
   and () =

@@ -9,30 +9,22 @@ let test_m (module Coverage : Coverage) =
   ()
 ;;
 
-module%template
-  [@alloc a @ l = (heap_global, stack_local)] Test
-    (Config : Config)
-    (Testable : Testable
-  [@alloc a]) =
-struct
+module Test (Config : Config) (Testable : Testable) = struct
   (* Define an integer generated using small non-negative values. This makes good testing
      inputs, as it will frequently generate duplicate or similar values, rather than
      things that are all over the place. *)
   module Nat = struct
     type t = (int[@generator Base_quickcheck.Generator.small_positive_or_zero_int])
-    [@@deriving
-      compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+    [@@deriving compare, equal, quickcheck, sexp_of, globalize]
   end
 
   module Elt = struct
     type t = Nat.t Testable.Elt.t
-    [@@deriving
-      compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+    [@@deriving compare, equal, quickcheck, sexp_of, globalize]
   end
 
   module Cont = struct
-    type t = Nat.t Testable.Cont.t
-    [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+    type t = Nat.t Testable.Cont.t [@@deriving equal, quickcheck, sexp_of]
   end
 
   module Concat = struct
@@ -40,7 +32,8 @@ struct
 
     let to_list = Testable.Concat.to_list
     let of_list = Testable.Concat.of_list
-    let equal x y = [%equal: Cont.t list] (to_list x) (to_list y)
+    let equal x y = [%equal: Cont.t list] (to_list x) (to_list y) [@nontail]
+    let equal = equal
     let sexp_of_t t = [%sexp_of: Cont.t list] (to_list t)
 
     open Base_quickcheck
@@ -65,14 +58,13 @@ struct
     (* The specialisation hack is necessary to allow [Sort] to be used by tests (thus,
        container functions) that are not templated by [alloc]. *)
 
-    let%template[@alloc a @ l = (heap_global, stack_local)] actual_alloc =
+    let actual_alloc =
       match Config.order with
       | Original | Sorted -> Fn.id
-      | Unpredictable -> (List.stable_sort [@alloc a]) ~compare:(Elt.compare [@mode l])
+      | Unpredictable -> List.stable_sort ~compare:Elt.compare
     ;;
 
-    let[@mode global] actual = (actual_alloc [@alloc heap])
-    let[@mode local] actual = (actual_alloc [@alloc stack])
+    let actual = actual_alloc
 
     let expect =
       let order =
@@ -98,10 +90,8 @@ struct
       | Heap
       | Stack
 
-    let[@mode global] mode = Global
-    let[@mode local] mode = Local
-    let[@alloc heap] alloc = Heap
-    let[@alloc stack] alloc = Stack
+    let mode = Global
+    let alloc = Heap
 
     let is_local = function
       | Local -> true
@@ -114,52 +104,23 @@ struct
     ;;
 
     (* Smart globalize *)
-    let[@mode mi = global, mo = global] smart_globalize _ x = x
-    let[@mode mi = (global, local), mo = local] smart_globalize _ x = x
-    let[@mode mi = local, mo = global] smart_globalize f x = f x
-
-    let _, _, _, _ =
-      ( (smart_globalize [@mode global global])
-      , (smart_globalize [@mode global local])
-      , (smart_globalize [@mode local global])
-      , (smart_globalize [@mode local local]) )
-    ;;
-
+    let smart_globalize _ x = x
+    let _, _, _, _ = smart_globalize, smart_globalize, smart_globalize, smart_globalize
     let elt_list_globalize = List.globalize Elt.globalize
-
-    let[@mode li = (global, l), lo = (global, l)] elt_smart_globalize elt =
-      (smart_globalize [@mode li lo]) Elt.globalize elt [@exclave_if_local lo]
-    ;;
-
-    let[@mode l = (global, l)] elt_list_mem list elt =
-      (List.mem [@mode l]) list elt ~equal:(Elt.equal [@mode l])
-    ;;
-
-    let[@mode global] list_rev = (List.rev [@alloc heap])
-    let[@mode local] list_rev = (List.rev [@alloc stack])
-    let[@mode l = (global, local)] result_return x = Ok x [@exclave_if_local l]
+    let elt_smart_globalize elt = smart_globalize Elt.globalize elt
+    let elt_list_mem list elt = List.mem list elt ~equal:Elt.equal
+    let list_rev = List.rev
+    let result_return x = Ok x
   end
 
   include (
   struct
-    [%%template
-    [@@@alloc a @ l = (heap_global, stack_local)]
-    [@@@mode.default l]
-
-    let sexp_of_output
-      (type output)
-      (module Output : Output with type t = output[@mode l])
-      output
-      =
-      Sexp.globalize ((Output.sexp_of_t [@alloc a]) output) [@nontail]
-    ;;]
+    let sexp_of_output (type output) (module Output : Output with type t = output) output =
+      Sexp.globalize (Output.sexp_of_t output) [@nontail]
+    ;;
   end :
   sig
-    val%template sexp_of_output
-      :  ((module Output with type t = 'output)[@mode l])
-      -> 'output
-      -> Sexp.t
-    [@@mode l = (local, global)]
+    val sexp_of_output : (module Output with type t = 'output) -> 'output -> Sexp.t
   end)
 
   exception Unexpected_allocation of int
@@ -177,10 +138,8 @@ struct
     / word_size_in_bytes
   ;;
 
-  let%template[@mode l = (global, l)] test_no_allocation ~expect_no_allocation fn =
-    match[@exclave_if_local l ~reasons:[ May_return_local ]]
-      Config.check_no_allocation && expect_no_allocation
-    with
+  let test_no_allocation ~expect_no_allocation fn =
+    match Config.check_no_allocation && expect_no_allocation with
     | true ->
       let bytes_before = Stdlib.Gc.allocated_bytes () in
       let fn_result = fn () in
@@ -192,7 +151,7 @@ struct
     | false -> fn ()
   ;;
 
-  let%template[@mode l = (global, l)] test_fn_nondeterministic_internal
+  let test_fn_nondeterministic_internal
     (type output)
     fn
     input_m
@@ -205,7 +164,7 @@ struct
     ~expect_no_allocation
     =
     let expect_no_allocation = Config.check_no_allocation && expect_no_allocation in
-    let (module Output : Output with type t = output[@mode l]) = output_m in
+    let (module Output : Output with type t = output) = output_m in
     print_endline
       (Printf.sprintf
          "Container: testing [%s%s]"
@@ -215,10 +174,7 @@ struct
       match expect input with
       | exception exn -> print_cr ~cr:Config.cr [%message "[expect] raised" (exn : exn)]
       | expect ->
-        (match
-           (test_no_allocation [@mode l]) ~expect_no_allocation (fun () ->
-             actual fn input [@exclave_if_local l])
-         with
+        (match test_no_allocation ~expect_no_allocation (fun () -> actual fn input) with
          | exception Unexpected_allocation n_words ->
            print_cr
              ~cr:Config.cr
@@ -232,13 +188,12 @@ struct
            print_cr_if_false
              ~cr:Config.cr
              (match Config.order, expect_if_unpredictable with
-              | (Original | Sorted), _ | Unpredictable, None ->
-                (Output.equal [@mode l]) actual expect
+              | (Original | Sorted), _ | Unpredictable, None -> Output.equal actual expect
               | Unpredictable, Some expect_if_unpredictable ->
                 expect_if_unpredictable input actual)
              (fun () ->
                let inconsistency =
-                 if (Output.equal [@mode l]) actual expect
+                 if Output.equal actual expect
                  then
                    Some
                      [%message "[actual] = [expect] but [expect_if_unpredictable] failed"]
@@ -246,7 +201,7 @@ struct
                in
                (* Factoring this out is necessary because [actual] is [@ local], and
                   mostly easier than messing with [@message__stack]. *)
-               let actual_sexp = (sexp_of_output [@mode l]) (module Output) actual in
+               let actual_sexp = sexp_of_output (module Output) actual in
                [%message
                  description
                    (expect : Output.t)
@@ -254,7 +209,7 @@ struct
                    (inconsistency : (Sexp.t option[@sexp.option]))]) [@nontail]))
   ;;
 
-  let[@mode.explicit l = (global, l)] test_fn_nondeterministic
+  let test_fn_nondeterministic
     fn
     input_m
     output_m
@@ -265,7 +220,7 @@ struct
     ~expect_if_unpredictable
     ~expect_no_allocation
     =
-    (test_fn_nondeterministic_internal [@mode l])
+    test_fn_nondeterministic_internal
       fn
       input_m
       output_m
@@ -277,17 +232,9 @@ struct
       ~expect_no_allocation
   ;;
 
-  let[@mode.explicit l = (global, l)] test_fn
-    fn
-    input_m
-    output_m
-    ~name
-    ~description
-    ~actual
-    ~expect
-    ~expect_no_allocation
+  let test_fn fn input_m output_m ~name ~description ~actual ~expect ~expect_no_allocation
     =
-    (test_fn_nondeterministic_internal [@mode l])
+    test_fn_nondeterministic_internal
       fn
       input_m
       output_m

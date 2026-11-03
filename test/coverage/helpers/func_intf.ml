@@ -1,12 +1,12 @@
 open! Base
 
 module Definitions = struct
-  module type%template [@mode m = (local, global)] With_compare = sig
-    type t [@@deriving (compare [@mode.explicit m]), (equal [@mode.explicit m])]
+  module type With_compare = sig
+    type t [@@deriving compare, equal]
   end
 end
 
-module type%template [@mode m = (local, global)] Func = sig
+module type Func = sig
   include module type of struct
     include Definitions
   end
@@ -15,7 +15,7 @@ module type%template [@mode m = (local, global)] Func = sig
     { initial : 'output
     ; transitions : ('input * 'output) list
     }
-  [@@deriving (equal [@mode.explicit m]), quickcheck, sexp_of]
+  [@@deriving equal, quickcheck, sexp_of]
 
   val inputs : ('input, 'output) t -> 'input list
   val outputs : ('input, 'output) t -> 'output list

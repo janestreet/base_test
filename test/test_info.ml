@@ -22,9 +22,7 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
-  print_endline
-    (to_string_hum
-       ((tag_s [@mode portable]) ~tag:[%message "tag"] (create_s [%message "info"])));
+  print_endline (to_string_hum (tag_s ~tag:[%message "tag"] (create_s [%message "info"])));
   [%expect {| (tag info) |}]
 ;;
 
@@ -73,7 +71,7 @@ let%expect_test _ = round (of_string "hello")
 let%expect_test _ = round (of_thunk (fun () -> "hello"))
 let%expect_test _ = round (create "tag" 13 [%sexp_of: int])
 let%expect_test _ = round (tag (of_string "hello") ~tag:"tag")
-let%expect_test _ = round ((tag [@mode portable]) (of_string "hello") ~tag:"tag")
+let%expect_test _ = round (tag (of_string "hello") ~tag:"tag")
 let%expect_test _ = round (tag_arg (of_string "hello") "tag" 13 [%sexp_of: int])
 let%expect_test _ = round (tag_arg (of_string "hello") "" 13 [%sexp_of: int])
 let%expect_test _ = round (of_list [ of_string "hello"; of_string "goodbye" ])
@@ -87,7 +85,7 @@ let%expect_test _ =
   [%expect {| |}]
 ;;
 
-let%expect_test "stack overflow" =
+module%test Stack_overflow = struct
   (* [Info.of_list [info]] and [Info.of_lazy_t (lazy info)] produce an [Info.t] with the
      same sexp as the original. Ideally, deep nesting of these should not yield a stack
      overflow just to produce a small value. *)
@@ -95,31 +93,28 @@ let%expect_test "stack overflow" =
     match Word_size.word_size with
     | W64 -> 1_000_000
     | W32 -> 100_000
-  in
-  let%template[@mode __ = (portable, nonportable)] test f ~wrap ~unwrap =
+  ;;
+
+  let test f ~wrap ~unwrap =
     let info = ref (wrap (Info.of_string "info")) in
     for _ = 1 to depth do
       info := f (unwrap !info) |> wrap
     done;
     print_s (Info.sexp_of_t (unwrap !info))
-  in
-  test (fun info -> Info.of_list [ info ]) ~wrap:Fn.id ~unwrap:Fn.id;
-  [%expect {| info |}];
-  test (fun info -> Info.of_lazy_t (lazy info)) ~wrap:Fn.id ~unwrap:Fn.id;
-  [%expect {| info |}];
-  test
-    (fun info -> Info.of_lazy_t (lazy (Info.of_list [ info ])))
-    ~wrap:Fn.id
-    ~unwrap:Fn.id;
-  [%expect {| info |}];
-  (test [@mode portable])
-    ~wrap:Modes.Portable.wrap
-    ~unwrap:Modes.Portable.unwrap
-    (fun info ->
-       Info.of_portable_lazy_t
-         (Portable_lazy.from_fun (fun () -> (Info.of_list [@mode portable]) [ info ])));
-  [%expect {| info |}]
-;;
+  ;;
+
+  let%expect_test "nonportable" =
+    test (fun info -> Info.of_list [ info ]) ~wrap:Fn.id ~unwrap:Fn.id;
+    [%expect {| info |}];
+    test (fun info -> Info.of_lazy_t (lazy info)) ~wrap:Fn.id ~unwrap:Fn.id;
+    [%expect {| info |}];
+    test
+      (fun info -> Info.of_lazy_t (lazy (Info.of_list [ info ])))
+      ~wrap:Fn.id
+      ~unwrap:Fn.id;
+    [%expect {| info |}]
+  ;;
+end
 
 let%expect_test "cyclic info computation" =
   let info =
@@ -205,7 +200,7 @@ let%expect_test "portabilize" =
   (* The info constructed with [of_portable_lazy] wasn't forced by [portabilize] because
      it's already portable. *)
   print_endline (Atomic.get portable_lazy_status);
-  [%expect {| <unforced> |}];
+  [%expect {| portable lazy was forced |}];
   List.iter examples ~f:(fun info -> print_s [%sexp (info : t)]);
   [%expect
     {|

@@ -111,3 +111,29 @@ struct
     [%expect {| |}]
   ;;
 end
+
+module%test [@name "Callback functions for [Result] can be given [@ once"] _ = struct
+  let consume (p : int ref) = !p
+
+  let%expect_test "map and bind with [@ once] callback" =
+    let foo_once_1 () = () in
+    let foo_once_2 () = Ok () in
+    ignore (Result.map (Ok ()) ~f:foo_once_1 : _);
+    ignore (Result.bind (Ok ()) ~f:foo_once_2 : _)
+  ;;
+
+  let%expect_test "map and bind infix operators with [@ once] callback" =
+    let open Result.Monad_infix in
+    let foo_once_1 () = () in
+    let foo_once_2 () = Ok () in
+    ignore (Ok () >>| foo_once_1 : _);
+    ignore (Ok () >>= foo_once_2 : _)
+  ;;
+
+  let%expect_test "map and bind capturing a unique variable" =
+    let x = { contents = 1 } in
+    ignore (Result.bind (Ok ()) ~f:(fun () -> Ok (consume x)) : _);
+    let y = { contents = 1 } in
+    ignore (Result.map (Ok ()) ~f:(fun () -> consume y) : _)
+  ;;
+end

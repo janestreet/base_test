@@ -246,6 +246,15 @@ module Test_creators
       require_equal (module Inst_multi.Value) t_fold t_multi;
       require_equal (module Inst_multi.Value) t_reduce t_multi)
 
+  and of_alist_multi_nonempty = of_alist_multi_nonempty
+
+  and () =
+    quickcheck_m (module Alist) ~f:(fun alist ->
+      require_equal
+        (module Inst_multi.Value)
+        (map (create of_alist_multi_nonempty alist) ~f:Nonempty_list.to_list)
+        (create of_alist_multi alist))
+
   and of_sequence = of_sequence
   and of_sequence_or_error = of_sequence_or_error
   and of_sequence_exn = of_sequence_exn
@@ -287,6 +296,17 @@ module Test_creators
       require_equal (module Inst_multi.Value) t_fold expect;
       require_equal (module Inst_multi.Value) t_reduce expect)
 
+  and of_sequence_multi_nonempty = of_sequence_multi_nonempty
+
+  and () =
+    quickcheck_m (module Alist) ~f:(fun alist ->
+      require_equal
+        (module Inst_multi.Value)
+        (map
+           (create of_sequence_multi_nonempty (Sequence.of_list alist))
+           ~f:Nonempty_list.to_list)
+        (create of_alist_multi alist))
+
   and of_list_with_key = of_list_with_key
   and of_list_with_key_or_error = of_list_with_key_or_error
   and of_list_with_key_exn = of_list_with_key_exn
@@ -326,6 +346,18 @@ module Test_creators
            (List.map list ~f:List.return)
            ~get_key:(fun x -> x |> List.hd_exn |> fst)
            ~f:(fun x y -> x @ y))
+        (create of_alist_multi alist))
+
+  and of_list_with_key_multi_nonempty = of_list_with_key_multi_nonempty
+
+  and () =
+    quickcheck_m (module Alist) ~f:(fun list ->
+      let alist = List.map list ~f:(fun (key, data) -> key, (key, data)) in
+      require_equal
+        (module Key_and_data_inst_multi)
+        (map
+           (create of_list_with_key_multi_nonempty list ~get_key:fst)
+           ~f:Nonempty_list.to_list)
         (create of_alist_multi alist))
 
   and of_increasing_sequence = of_increasing_sequence
@@ -506,6 +538,16 @@ module Test_accessors
         (access find_multi t key)
         (access find t key |> Option.value ~default:[]))
 
+  and find_multi_nonempty = find_multi_nonempty
+
+  and () =
+    quickcheck_m (module Inst_multi_and_key) ~f:(fun (t, key) ->
+      let t = filter_map (Inst_multi.value t) ~f:Nonempty_list.of_list in
+      require_equal
+        (module Data.List (Int))
+        (access find_multi_nonempty t key)
+        (access find t key |> Option.value_map ~default:[] ~f:Nonempty_list.to_list))
+
   and iter_keys = iter_keys
   and iter = iter
   and iteri = iteri
@@ -576,9 +618,9 @@ module Test_accessors
          list, if List.length list = length t then Finished else Unfinished))
 
   and equal = equal
-  and equal__local = equal__local
+  and equal__local = equal
   and compare_direct = compare_direct
-  and compare_direct__local = compare_direct__local
+  and compare_direct__local = compare_direct
 
   and () =
     quickcheck_m (module Inst_and_inst) ~f:(fun (a, b) ->
@@ -987,11 +1029,9 @@ module Test_transformers
   open Impl
   open Test_helpers (Instance) (Impl)
 
-  module type%template Make_applicative_traversals =
-      module type of Make_applicative_traversals [@modality p]
-  [@@modality p = (nonportable, portable)]
+  module type Make_applicative_traversals = module type of Make_applicative_traversals
 
-  let%template () = print_endline "Functor.Test_transformers: running tests."
+  let () = print_endline "Functor.Test_transformers: running tests."
 
   (** transformers *)
 
@@ -1088,6 +1128,22 @@ module Test_transformers
       let expect = access set t ~key ~data in
       require_equal (module Inst.Value) actual expect)
 
+  and update_or_null = update_or_null
+
+  and () =
+    quickcheck_m (module Inst_and_key_and_data) ~f:(fun (t, key, data) ->
+      let t = Inst.value t in
+      let actual =
+        access update_or_null t key ~f:(fun previous ->
+          require_equal
+            (module Data.Option (Int))
+            (Or_null.to_option previous)
+            (access find t key);
+          data)
+      in
+      let expect = access set t ~key ~data in
+      require_equal (module Inst.Value) actual expect)
+
   and update_and_return = update_and_return
 
   and () =
@@ -1101,6 +1157,24 @@ module Test_transformers
       let expect = access set t ~key ~data in
       require_equal (module Inst.Value) actual expect;
       require_equal (module Int) new_data data)
+
+  and change_and_return = change_and_return
+
+  and () =
+    quickcheck_m (module Inst_and_key_and_maybe_data) ~f:(fun (t, key, maybe_data) ->
+      let t = Inst.value t in
+      let new_data, actual =
+        access change_and_return t key ~f:(fun previous ->
+          require_equal (module Data.Option (Int)) previous (access find t key);
+          maybe_data)
+      in
+      let expect =
+        match maybe_data with
+        | None -> access remove t key
+        | Some data -> access set t ~key ~data
+      in
+      require_equal (module Inst.Value) actual expect;
+      require_equal (module Data.Option (Int)) new_data maybe_data)
 
   and add_multi = add_multi
   and remove_multi = remove_multi
@@ -1118,6 +1192,26 @@ module Test_transformers
         (access change t key ~f:(function
           | None | Some ([] | [ _ ]) -> None
           | Some (_ :: (_ :: _ as rest)) -> Some rest)))
+
+  and add_multi_nonempty = add_multi_nonempty
+  and remove_multi_nonempty = remove_multi_nonempty
+
+  and () =
+    quickcheck_m (module Inst_multi_and_key_and_data) ~f:(fun (t, key, data) ->
+      let t_nonempty = filter_map (Inst_multi.value t) ~f:Nonempty_list.of_list in
+      let t_without_empty =
+        filter (Inst_multi.value t) ~f:(function
+          | [] -> false
+          | _ :: _ -> true)
+      in
+      require_equal
+        (module Inst_multi.Value)
+        (map (access add_multi_nonempty t_nonempty ~key ~data) ~f:Nonempty_list.to_list)
+        (access add_multi t_without_empty ~key ~data);
+      require_equal
+        (module Inst_multi.Value)
+        (map (access remove_multi_nonempty t_nonempty key) ~f:Nonempty_list.to_list)
+        (access remove_multi t_without_empty key))
 
   and map = map
   and mapi = mapi
@@ -1644,19 +1738,18 @@ module Test_transformers
       in
       require_equal (module Alist) subrange_alist expect)
 
-  and m_Make_applicative_traversals : ((module Make_applicative_traversals)[@modality p]) =
+  and m_Make_applicative_traversals : (module Make_applicative_traversals) =
     (module functor
               (A : sig
                  include Applicative.Lazy_applicative
                end)
               ->
               struct
-                module M = Make_applicative_traversals [@modality p] (A)
+                module M = Make_applicative_traversals (A)
 
                 let mapi = M.mapi
                 let filter_mapi = M.filter_mapi
               end)
-  [@@modality p = (nonportable, portable)]
 
   and () =
     let module M =
@@ -1682,6 +1775,5 @@ module Test_transformers
       require_equal (module Inst.Value) (filter_mapi t ~f:f2) (M.filter_mapi t ~f:f2))
   ;;
 
-  module%template.portable [@modality p] Make_applicative_traversals =
-    (val (m_Make_applicative_traversals [@modality p]))
+  module Make_applicative_traversals = (val m_Make_applicative_traversals)
 end

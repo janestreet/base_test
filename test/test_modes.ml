@@ -11,11 +11,10 @@ module _ : Modes.At_locality.Without_crossing = struct
   type actually_local = Modes.At_locality.actually_local
 
   type global = Modes.At_locality.global
-  [@@deriving compare ~localize, equal ~localize, hash, sexp_of ~stackify, sexp_grammar]
+  [@@deriving compare, equal, hash, sexp_of, sexp_grammar]
 
   type local = Modes.At_locality.local
-  [@@deriving
-    compare ~localize, equal ~localize, hash, sexp_of ~localize ~stackify, sexp_grammar]
+  [@@deriving compare, equal, hash, sexp_of, sexp_grammar]
 
   type (+'a, 'locality) t =
     | Local : 'a -> ('a, local) t
@@ -32,12 +31,6 @@ module _ : Modes.At_locality.Without_crossing = struct
   let globalize_global t = wrap (unwrap_global t)
   let equal equal_a _ x y = equal_a (unwrap x) (unwrap y)
   let compare compare_a _ x y = compare_a (unwrap x) (unwrap y)
-  let equal__local equal_a _ x y = equal_a (unwrap_local x) (unwrap_local y) [@nontail]
-
-  let compare__local compare_a _ x y =
-    compare_a (unwrap_local x) (unwrap_local y) [@nontail]
-  ;;
-
   let hash_fold_t hash_fold_a _ state t = hash_fold_a state (unwrap t)
   let sexp_of_t sexp_of_a _ t = sexp_of_a (unwrap t)
 
@@ -82,3 +75,34 @@ let%expect_test _ =
   Stdio.print_s [%sexp (f : float)];
   [%expect {| 0 |}]
 ;;
+
+(** An implementation of [Modes.Many_via_aliased] (except for the variance and the
+    mode-crossing behaviour on axes other than [many] and [aliased]) with no magic, but
+    additional overhead *)
+module _ : sig
+  type !'a t
+
+  val wrap : 'a -> 'a t
+  val unwrap : 'a t -> 'a
+end = struct
+  type 'a t = 'a Unique.Ref.t
+
+  let wrap = Unique.Ref.make
+  let unwrap = Unique.Ref.get
+end
+[@@warning "-32"]
+
+(** An implementation of [Modes.Aliased_via_many] (except for the mode-crossing behaviour
+    on axes other than [many] and [aliased]) with no magic, but additional overhead *)
+module _ : sig
+  type !+'a t
+
+  val wrap : 'a -> 'a t
+  val unwrap : 'a t -> 'a
+end = struct
+  type 'a t = unit -> 'a
+
+  let wrap x () = x
+  let unwrap x = x ()
+end
+[@@warning "-32"]

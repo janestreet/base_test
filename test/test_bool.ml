@@ -79,6 +79,17 @@ let%expect_test "[Bool.select]" =
     |}]
 ;;
 
+let%expect_test "[Bool.select] with [read] values" =
+  let select if_ (then_ : int ref) (else_ : int ref) : int ref =
+    Bool.select if_ then_ else_
+  in
+  let consume (ref : int ref) = print_s [%sexp (ref.contents : int)] in
+  consume (select true (ref 1) (ref 2));
+  [%expect {| 1 |}];
+  consume (select false (ref 1) (ref 2));
+  [%expect {| 2 |}]
+;;
+
 let%expect_test "[Bool.select] with [or_null] values" =
   print_s [%sexp (Bool.select true (This 1) Null : int or_null)];
   [%expect {| (1) |}];
@@ -96,4 +107,12 @@ let%expect_test "[Bool.select] with [or_null] values" =
   [%expect {| () |}];
   print_s [%sexp (Bool.select false Null Null : int or_null)];
   [%expect {| () |}]
+;;
+
+let%expect_test "[Bool.select] on [value_or_null & bits64] products" =
+  let print t = print_s [%sexp (t : int or_null * Int64_u.t)] in
+  print (Bool.select true (This 1, 10L) (Null, 20L));
+  [%expect {| ((1) 10) |}];
+  print (Bool.select false (This 1, 10L) (Null, 20L));
+  [%expect {| (() 20) |}]
 ;;

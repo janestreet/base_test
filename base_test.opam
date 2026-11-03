@@ -17,16 +17,20 @@ depends: [
   "ocaml" {>= "5.1.0"}
   "base"
   "base_quickcheck"
+  "basement"
   "bignum"
   "core"
   "expect_test_helpers_base"
   "expectable"
   "portable"
+  "ppx_int63_literal"
   "ppx_jane"
   "ppx_loc"
+  "ppx_quick_test"
   "sexp_grammar"
   "sexplib"
   "stdio"
+  "unique"
   "dune"                     {>= "3.17.0"}
 ]
 available: arch != "x86_32"

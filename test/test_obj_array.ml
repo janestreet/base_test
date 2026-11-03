@@ -2,7 +2,7 @@ open! Import
 module Obj_array = Base.Exported_for_specific_uses.Obj_array
 
 (* Invariant tests *)
-module%test [@tags "no-js"] _ : module type of struct
+module%test [@tags "64-bits-only"] _ : module type of struct
   include Obj_array
 end = struct
   type t = Obj_array.t
@@ -59,11 +59,7 @@ end = struct
   let blito = Obj_array.blito
   let unsafe_blit = Obj_array.unsafe_blit
   let length = Obj_array.length
-
-  let%template[@zero_alloc] get t i = (Obj_array.get [@mode c]) t i
-  [@@mode c = (uncontended, shared)]
-  ;;
-
+  let[@zero_alloc] get t i = Obj_array.get t i
   let[@zero_alloc] unsafe_get t i = Obj_array.unsafe_get t i
   let set = Obj_array.set
   let unsafe_set = Obj_array.unsafe_set

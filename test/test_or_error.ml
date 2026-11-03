@@ -7,6 +7,36 @@ let%test _ =
   [%compare.equal: string t] (errorf_portable "foo %d" 13 ()) (error_string "foo 13")
 ;;
 
+let%expect_test "portable helpers" =
+  let open Or_error.Portable in
+  print_s [%sexp (errorf "foo %d" 13 : int t)];
+  [%expect {| (Error "foo 13") |}];
+  print_s [%sexp (of_exn (Failure "of_exn") : int t)];
+  [%expect {| (Error (Failure of_exn)) |}];
+  print_s [%sexp (of_exn_result (Error (Failure "of_exn_result")) : int t)];
+  [%expect {| (Error (Failure of_exn_result)) |}];
+  print_s [%sexp (try_with (fun () -> raise (Failure "try_with")) : int t)];
+  [%expect {| (Error (Failure try_with)) |}];
+  print_s [%sexp (try_with_join (fun () -> error_string "try_with_join") : int t)];
+  [%expect {| (Error try_with_join) |}]
+;;
+
+let%expect_test "portabilize" =
+  let error =
+    Error.of_thunk (fun () ->
+      print_endline "forcing error";
+      "error")
+  in
+  print_s [%sexp (portabilize (Error error) : int Portable.t)];
+  [%expect
+    {|
+    forcing error
+    (Error error)
+    |}];
+  print_s [%sexp (portabilize (Ok 13) : int Portable.t)];
+  [%expect {| (Ok 13) |}]
+;;
+
 let%test_unit _ =
   for i = 0 to 10 do
     assert (
@@ -24,14 +54,10 @@ let%test _ = combine_errors_unit [] = Ok ()
 
 (* Portable error creation *)
 
-let%test _ = Result.is_error ((combine_errors [@mode portable]) [ error_string "" ])
-
-let%test _ =
-  Result.is_error ((combine_errors [@mode portable]) [ Ok (); error_string "" ])
-;;
-
-let%test _ = (combine_errors_unit [@mode portable]) [ Ok (); Ok () ] = Ok ()
-let%test _ = (combine_errors_unit [@mode portable]) [] = Ok ()
+let%test _ = Result.is_error (combine_errors [ error_string "" ])
+let%test _ = Result.is_error (combine_errors [ Ok (); error_string "" ])
+let%test _ = combine_errors_unit [ Ok (); Ok () ] = Ok ()
+let%test _ = combine_errors_unit [] = Ok ()
 
 let%test _ =
   let a = Error.of_string "a"
@@ -134,7 +160,7 @@ let%expect_test "behavior and performance on lists of or_error's" =
          also happens to observe whether the error was created via [Error.of_string]. *)
       Error.to_string_hum error
   in
-  let%template[@mode p = (portable, nonportable)] test (f : _ -> _) =
+  let test (f : _ -> _) =
     (* Show behavior on short lists. *)
     List.iter short_lists ~f:(fun list ->
       print_endline (to_string (f (Modes.Portable.unwrap_list list))));
@@ -168,7 +194,7 @@ let%expect_test "behavior and performance on lists of or_error's" =
     ("at 0" "at 1")
     ("at 0" "at 1" "at 2" "at 3" "at 4" "at 5" "at 6" "at 7" "at 8" "at 9")
     |}];
-  (test [@mode portable]) (combine_errors [@mode portable]);
+  test combine_errors;
   [%expect
     {|
     ok
@@ -184,7 +210,7 @@ let%expect_test "behavior and performance on lists of or_error's" =
     ("at 0" "at 1")
     ("at 0" "at 1" "at 2" "at 3" "at 4" "at 5" "at 6" "at 7" "at 8" "at 9")
     |}];
-  (test [@mode portable]) (combine_errors_unit [@mode portable]);
+  test combine_errors_unit;
   [%expect
     {|
     ok

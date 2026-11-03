@@ -2,6 +2,6 @@
  (name base_container_tests)
  (public_name base_test.container_tests)
  (libraries base base_quickcheck expect_test_helpers_base)
- (flags :standard -w -67)
+ (flags :standard -w -unused-functor-parameter)
  (preprocess
-  (pps ppx_jane ppx_loc)))
+  (pps ppx_jane ppx_loc -compare-require-explicit-locality)))

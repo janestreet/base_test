@@ -10,16 +10,12 @@ include Indexed_container_tests
     The [Container_already_tested] argument allows [Container.Generic] to be separately
     tested using [Container_tests.Run], and the coverage may then be shared with this and
     other tests of signature extensions. *)
-module%template
-  [@alloc a @ l = (heap_global, stack_local)] Run
+module Run
     (Config : Helpers.Config)
-    (Impl : Indexed_container_generic
-  [@alloc a])
+    (Impl : Indexed_container_generic)
     (Container_already_tested : Container.Generic
-                                [@alloc a]
                                 with type 'a elt := 'a Impl.Elt.t
                                  and type ('a, 'p1, 'p2) t := ('a, 'p1, 'p2) Impl.t) :
   Indexed_container.Generic
-  [@alloc a]
   with type 'a elt := 'a Impl.Elt.t
    and type ('a, 'p1, 'p2) t := ('a, 'p1, 'p2) Impl.t

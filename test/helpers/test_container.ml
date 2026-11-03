@@ -1,7 +1,7 @@
 open! Base
 open! Container
 
-module%template.portable Test_generic
+module Test_generic
     (Elt : sig
        type 'a t
 
@@ -158,8 +158,7 @@ struct
   ;;
 end
 
-module%template.portable
-  [@modality p] Test_S1_allow_skipping_tests (Container : sig
+module Test_S1_allow_skipping_tests (Container : sig
     type 'a t [@@deriving sexp]
 
     include Container.S1 with type 'a t := 'a t
@@ -168,7 +167,7 @@ module%template.portable
   end) =
 struct
   include
-    Test_generic [@modality p]
+    Test_generic
       (struct
         type 'a t = 'a
 
@@ -178,15 +177,14 @@ struct
       (Container)
 end
 
-module%template.portable
-  [@modality p] Test_S1 (Container : sig
+module Test_S1 (Container : sig
     type 'a t [@@deriving sexp]
 
     include Container.S1 with type 'a t := 'a t
 
     val of_list : 'a list -> 'a t
   end) =
-Test_S1_allow_skipping_tests [@modality p] (struct
+Test_S1_allow_skipping_tests (struct
     include Container
 
     let of_list l = `Ok (of_list l)

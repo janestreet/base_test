@@ -1,7 +1,6 @@
 open! Import
 open! List
 
-[%%template
 let config =
   { Base_quickcheck.Test.default_config with
     (* We're using some sizes that are ~30x bigger than the defaults; reduce the test
@@ -14,68 +13,38 @@ let config =
   }
 ;;
 
-module [@kind k = value] Harness = struct
+module Harness = struct
   module Elt = struct
     include Int
 
-    type boxed = int [@@deriving compare ~localize, quickcheck, sexp_of ~stackify]
+    type boxed = int [@@deriving compare, quickcheck, sexp_of]
 
     let box = Fn.id
     let unbox = Fn.id
   end
 
   module Harness = struct
-    type t = Elt.boxed list [@@deriving compare ~localize, quickcheck, sexp_of ~stackify]
+    type t = Elt.boxed list [@@deriving compare, quickcheck, sexp_of]
 
-    let box : (Elt.t List.t[@kind k]) -> t = Fn.id
-    [@@alloc a @ l = (stack_local, heap_global)]
-    ;;
-
+    let box : Elt.t List.t -> t = Fn.id
     let unbox = Fn.id
   end
 end
 
-module [@kind k = bits32] Harness = struct
-  module Elt = struct
-    include Int32_u
-
-    type boxed = int32 [@@deriving compare ~localize, quickcheck, sexp_of ~stackify]
-
-    let box = Int32_u.to_int32
-    let unbox = Int32_u.of_int32
-  end
-
-  module Harness = struct
-    type t = Elt.boxed list [@@deriving compare ~localize, quickcheck, sexp_of ~stackify]
-
-    let box : (Elt.t List.t[@kind k]) -> t =
-      (List.map [@kind k value_or_null] [@mode l] [@alloc a]) ~f:[%eta1 Int32_u.to_int32]
-    [@@alloc a @ l = (stack_local, heap_global)]
-    ;;
-
-    let unbox = (List.map [@kind value_or_null k]) ~f:Int32_u.of_int32
-  end
-end
-
 module Name = struct
-  let[@kind value] kind = "value"
-  let[@kind bits32] kind = "bits32"
-  let[@alloc heap] alloc = "heap"
-  let[@alloc stack] alloc = "stack"
-
-  let name fname = Printf.sprintf "%s_%s_%s" fname (kind [@kind k]) (alloc [@alloc a])
-  [@@kind k = (value, bits32)] [@@alloc a = (heap, stack)]
-  ;;
+  let kind = "value"
+  let alloc = "heap"
+  let name fname = Printf.sprintf "%s_%s_%s" fname kind alloc
 end
 
-module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
-  open Harness [@kind k]
+module _ = struct
+  open Harness
 
-  let name = (Name.name [@kind k] [@alloc a])
+  let name = Name.name
 
   let%test_unit [%name name "is_empty"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual = (List.is_empty [@kind k]) (Harness.unbox list) in
+      let actual = List.is_empty (Harness.unbox list) in
       let expected = List.length list = 0 in
       [%test_eq: bool] actual expected)
   ;;
@@ -85,7 +54,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
       let n = 1 + Stdlib.List.length list in
       let actual = ref [] in
       let actual_res =
-        (List.iter_until [@kind k] [@mode l l])
+        List.iter_until
           (Harness.unbox list)
           ~f:(fun (x : Elt.t) ->
             if Elt.(x % of_int_exn n = of_int_exn 0)
@@ -105,21 +74,18 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
               else expected := Elt.box x :: !expected)
             list)
       in
-      ([%test_eq: Harness.t] [@alloc stack]) !actual (Harness.box !expected);
-      ([%test_eq: Elt.boxed option] [@alloc stack]) actual_res expected_res [@nontail])
+      [%test_eq: Harness.t] !actual (Harness.box !expected);
+      [%test_eq: Elt.boxed option] actual_res expected_res [@nontail])
   ;;
 
   let%test_unit [%name name "fold_result"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let n = 1 + Stdlib.List.length list in
       let actual =
-        (List.fold_result [@kind k value] [@mode l l])
-          (Harness.unbox list)
-          ~init:[]
-          ~f:(fun acc (x : Elt.t) ->
-            if Elt.(x % of_int_exn n = of_int_exn 0)
-            then Error (Elt.box x)
-            else Ok (Elt.box x :: acc) [@exclave_if_stack a])
+        List.fold_result (Harness.unbox list) ~init:[] ~f:(fun acc (x : Elt.t) ->
+          if Elt.(x % of_int_exn n = of_int_exn 0)
+          then Error (Elt.box x)
+          else Ok (Elt.box x :: acc))
       in
       let expected =
         With_return.with_return (fun { return } ->
@@ -132,23 +98,21 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
                []
                list))
       in
-      ([%test_eq: (Harness.t, Elt.boxed) Result.t] [@alloc stack])
-        actual
-        expected [@nontail])
+      [%test_eq: (Harness.t, Elt.boxed) Result.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "fold_until"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let n = 1 + Stdlib.List.length list in
       let actual =
-        (List.fold_until [@kind k value] [@mode l l])
+        List.fold_until
           (Harness.unbox list)
           ~init:[]
           ~f:(fun acc (x : Elt.t) ->
             if Elt.(x % of_int_exn n = of_int_exn 0)
             then Stop (Error (Elt.box x))
-            else Continue (Elt.box x :: acc) [@exclave_if_stack a])
-          ~finish:(fun acc -> Ok acc [@exclave_if_stack a])
+            else Continue (Elt.box x :: acc))
+          ~finish:(fun acc -> Ok acc)
       in
       let expected =
         With_return.with_return (fun { return } ->
@@ -161,23 +125,21 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
                []
                list))
       in
-      ([%test_eq: (Harness.t, Elt.boxed) Result.t] [@alloc stack])
-        actual
-        expected [@nontail])
+      [%test_eq: (Harness.t, Elt.boxed) Result.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "foldi_until"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let n = 1 + Stdlib.List.length list in
       let actual =
-        (List.foldi_until [@kind k value] [@mode l l])
+        List.foldi_until
           (Harness.unbox list)
           ~init:[]
           ~f:(fun i acc (x : Elt.t) ->
             if Elt.(x % of_int_exn n = of_int_exn 0)
             then Stop (Error (i, Elt.box x))
-            else Continue (Elt.box x :: acc) [@exclave_if_stack a])
-          ~finish:(fun i acc -> Ok (i, acc) [@exclave_if_stack a])
+            else Continue (Elt.box x :: acc))
+          ~finish:(fun i acc -> Ok (i, acc))
       in
       let expected =
         With_return.with_return (fun { return } ->
@@ -190,15 +152,13 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
                (0, [])
                list))
       in
-      ([%test_eq: (int * Harness.t, int * Elt.boxed) Result.t] [@alloc stack])
-        actual
-        expected [@nontail])
+      [%test_eq: (int * Harness.t, int * Elt.boxed) Result.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "exists"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.compare x (Elt.of_int_exn 5) > 0 in
-      let actual = (List.exists [@kind k] [@mode l]) (Harness.unbox list) ~f in
+      let actual = List.exists (Harness.unbox list) ~f in
       let expected = Stdlib.List.exists (fun x -> f (Elt.unbox x)) list in
       [%test_eq: bool] actual expected)
   ;;
@@ -206,7 +166,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
   let%test_unit [%name name "existsi"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = i % 2 = 0 && Elt.compare x (Elt.of_int_exn 3) > 0 in
-      let actual = (List.existsi [@kind k] [@mode l]) list ~f in
+      let actual = List.existsi list ~f in
       let _, expected =
         Stdlib.List.fold_left (fun (i, acc) x -> i + 1, acc || f i x) (0, false) list
       in
@@ -216,7 +176,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
   let%test_unit [%name name "for_all"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.compare x (Elt.of_int 100) < 0 in
-      let actual = (List.for_all [@kind k] [@mode l]) list ~f in
+      let actual = List.for_all list ~f in
       let expected = Stdlib.List.for_all (fun x -> f (Elt.unbox x)) list in
       [%test_eq: bool] actual expected)
   ;;
@@ -224,7 +184,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
   let%test_unit [%name name "for_alli"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = i < 10 || Elt.compare x (Elt.of_int 0) >= 0 in
-      let actual = (List.for_alli [@kind k] [@mode l]) list ~f in
+      let actual = List.for_alli list ~f in
       let _, expected =
         Stdlib.List.fold_left (fun (i, acc) x -> i + 1, acc && f i x) (0, true) list
       in
@@ -234,7 +194,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
   let%test_unit [%name name "count"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.compare x (Elt.of_int 10) <= 0 in
-      let actual = (List.count [@kind k] [@mode l]) list ~f in
+      let actual = List.count list ~f in
       let expected =
         Stdlib.List.fold_left (fun acc x -> if f x then acc + 1 else acc) 0 list
       in
@@ -244,7 +204,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
   let%test_unit [%name name "counti"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = i % 3 = 0 && Elt.compare x (Elt.of_int 5) > 0 in
-      let actual = (List.counti [@kind k] [@mode l]) list ~f in
+      let actual = List.counti list ~f in
       let _, expected =
         Stdlib.List.fold_left
           (fun (i, acc) x -> i + 1, if f i x then acc + 1 else acc)
@@ -256,9 +216,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
 
   let%test_unit [%name name "sum"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual =
-        (List.sum [@kind k] [@mode l l]) (module Int) (Harness.unbox list) ~f:Fn.id
-      in
+      let actual = List.sum (module Int) (Harness.unbox list) ~f:Fn.id in
       let expected = Stdlib.List.fold_left (fun acc x -> acc + Elt.to_int x) 0 list in
       [%test_eq: Int.t] actual expected)
   ;;
@@ -266,38 +224,35 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
   let%test_unit [%name name "find"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.compare x (Elt.of_int 7) > 0 in
-      let actual = (List.find [@kind k] [@mode l]) (Harness.unbox list) ~f in
+      let actual = List.find (Harness.unbox list) ~f in
       let expected =
         match Stdlib.List.find_opt (fun x -> f (Elt.unbox x)) list with
         | Some x -> Some (Elt.unbox x)
         | None -> None
       in
-      ([%test_eq: Elt.t option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Elt.t option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "find_or_null"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.compare x (Elt.of_int 7) > 0 in
-      let actual =
-        (List.find_or_null [@kind k] [@mode l]) (Harness.unbox list) ~f
-        |> (Or_null.to_option [@mode l])
-      in
+      let actual = List.find_or_null (Harness.unbox list) ~f |> Or_null.to_option in
       let expected =
         match Stdlib.List.find_opt (fun x -> f (Elt.unbox x)) list with
         | Some x -> Some (Elt.unbox x)
         | None -> None
       in
-      ([%test_eq: Elt.t option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Elt.t option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "findi"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = i > 2 && Elt.compare x (Elt.of_int 4) <= 0 in
-      let actual = (List.findi [@kind k] [@mode l]) (Harness.unbox list) ~f in
+      let actual = List.findi (Harness.unbox list) ~f in
       let expected =
         Stdlib.List.find_mapi (fun i x -> if f i x then Some (i, x) else None) list
       in
-      ([%test_eq: (int * Elt.t) option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: (int * Elt.t) option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "find_map"] =
@@ -306,9 +261,9 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         let v = Elt.to_int x in
         if v % 3 = 0 then Some (v * 2) else None
       in
-      let actual = (List.find_map [@kind k] [@mode l l]) (Harness.unbox list) ~f in
+      let actual = List.find_map (Harness.unbox list) ~f in
       let expected = Stdlib.List.find_map f list in
-      ([%test_eq: int option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: int option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "find_map_or_null"] =
@@ -317,14 +272,11 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         let v = Elt.to_int x in
         if v % 3 = 0 then This (v * 2) else Null
       in
-      let actual =
-        (List.find_map_or_null [@mode l l]) (Harness.unbox list) ~f
-        |> (Or_null.to_option [@mode l])
-      in
+      let actual = List.find_map_or_null (Harness.unbox list) ~f |> Or_null.to_option in
       let expected =
         Stdlib.List.find_map (fun x -> f (Elt.unbox x) |> Or_null.to_option) list
       in
-      ([%test_eq: int option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: int option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "find_mapi"] =
@@ -333,9 +285,9 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         let v = Elt.to_int x in
         if i % 2 = 1 && v > 5 then Some (i + v) else None
       in
-      let actual = (List.find_mapi [@kind k] [@mode l l]) (Harness.unbox list) ~f in
+      let actual = List.find_mapi (Harness.unbox list) ~f in
       let expected = Stdlib.List.find_mapi (fun i x -> f i x) list in
-      ([%test_eq: Elt.boxed option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Elt.boxed option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "find_mapi_or_null"] =
@@ -344,47 +296,40 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         let v = Elt.to_int x in
         if i % 2 = 1 && v > 5 then This (i + v) else Null
       in
-      let actual =
-        (List.find_mapi_or_null [@mode l l]) (Harness.unbox list) ~f
-        |> (Or_null.to_option [@mode l])
-      in
+      let actual = List.find_mapi_or_null (Harness.unbox list) ~f |> Or_null.to_option in
       let expected =
         Stdlib.List.find_mapi (fun i x -> f i (Elt.unbox x) |> Or_null.to_option) list
       in
-      ([%test_eq: int option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: int option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "to_list"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual = (List.to_list [@kind k] [@alloc a]) (Harness.unbox list) in
+      let actual = List.to_list (Harness.unbox list) in
       let expected = list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "min_elt"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual =
-        (List.min_elt [@kind k] [@mode l]) (Harness.unbox list) ~compare:Elt.compare
-      in
+      let actual = List.min_elt (Harness.unbox list) ~compare:Elt.compare in
       let expected =
         match Stdlib.List.sort Elt.compare list with
         | [] -> None
         | x :: _ -> Some x
       in
-      ([%test_eq: Elt.t option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Elt.t option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "max_elt"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual =
-        (List.max_elt [@kind k] [@mode l]) (Harness.unbox list) ~compare:Elt.compare
-      in
+      let actual = List.max_elt (Harness.unbox list) ~compare:Elt.compare in
       let expected =
         match Stdlib.List.sort (fun x y -> Elt.compare y x) list with
         | [] -> None
         | x :: _ -> Some x
       in
-      ([%test_eq: Elt.t option] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Elt.t option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "of_array"] =
@@ -394,9 +339,9 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         type t = Elt.boxed array [@@deriving quickcheck, sexp_of]
       end)
       ~f:(fun array ->
-        let actual = (List.of_array [@kind k] [@alloc a]) array in
+        let actual = List.of_array array in
         let expected = Stdlib.Array.to_list array in
-        ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+        [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "concat"] =
@@ -407,38 +352,34 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
       end)
       ~f:(fun lists ->
         let unboxed_lists = List.map lists ~f:Harness.unbox in
-        let actual = (List.concat [@kind k] [@alloc a]) unboxed_lists in
+        let actual = List.concat unboxed_lists in
         let expected = Stdlib.List.concat lists in
-        ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+        [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "partition_tf"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.(x % of_int_exn 2 = of_int_exn 0) in
-      let actual_true, actual_false =
-        (List.partition_tf [@kind k] [@alloc a]) (Harness.unbox list) ~f
-      in
-      let actual_true = (Harness.box [@alloc a]) actual_true in
-      let actual_false = (Harness.box [@alloc a]) actual_false in
+      let actual_true, actual_false = List.partition_tf (Harness.unbox list) ~f in
+      let actual_true = Harness.box actual_true in
+      let actual_false = Harness.box actual_false in
       let expected_true, expected_false =
         Stdlib.List.partition (fun x -> f (Elt.unbox x)) list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual_true expected_true [@nontail];
-      ([%test_eq: Harness.t] [@alloc stack]) actual_false expected_false [@nontail])
+      [%test_eq: Harness.t] actual_true expected_true [@nontail];
+      [%test_eq: Harness.t] actual_false expected_false [@nontail])
   ;;
 
   let%test_unit [%name name "partitioni_tf"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = i % 2 = 0 && Elt.(x > of_int_exn 5) in
-      let actual_true, actual_false =
-        (List.partitioni_tf [@kind k] [@alloc a]) (Harness.unbox list) ~f
-      in
-      let actual_true = (Harness.box [@alloc a]) actual_true in
-      let actual_false = (Harness.box [@alloc a]) actual_false in
+      let actual_true, actual_false = List.partitioni_tf (Harness.unbox list) ~f in
+      let actual_true = Harness.box actual_true in
+      let actual_false = Harness.box actual_false in
       let expected_true = Stdlib.List.filteri f list in
       let expected_false = Stdlib.List.filteri (fun i x -> not (f i x)) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual_true expected_true [@nontail];
-      ([%test_eq: Harness.t] [@alloc stack]) actual_false expected_false [@nontail])
+      [%test_eq: Harness.t] actual_true expected_true [@nontail];
+      [%test_eq: Harness.t] actual_false expected_false [@nontail])
   ;;
 
   let%test_unit [%name name "partition_map"] =
@@ -448,11 +389,9 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         then First Elt.(x / of_int_exn 2)
         else Second x
       in
-      let actual_first, actual_second =
-        (List.partition_map [@kind k k] [@alloc a]) (Harness.unbox list) ~f
-      in
-      let actual_first = (Harness.box [@alloc a]) actual_first in
-      let actual_second = (Harness.box [@alloc a]) actual_second in
+      let actual_first, actual_second = List.partition_map (Harness.unbox list) ~f in
+      let actual_first = Harness.box actual_first in
+      let actual_second = Harness.box actual_second in
       let expected_first, expected_second =
         Stdlib.List.partition_map
           (fun x ->
@@ -461,8 +400,8 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
             | Second y -> Right (Elt.box y))
           list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual_first expected_first [@nontail];
-      ([%test_eq: Harness.t] [@alloc stack]) actual_second expected_second [@nontail])
+      [%test_eq: Harness.t] actual_first expected_first [@nontail];
+      [%test_eq: Harness.t] actual_second expected_second [@nontail])
   ;;
 
   let%test_unit [%name name "partition_mapi"] =
@@ -470,11 +409,9 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
       let f i x : _ Either.t =
         if i % 3 = 0 then First Elt.(x / of_int_exn 2) else Second x
       in
-      let actual_first, actual_second =
-        (List.partition_mapi [@kind k k] [@alloc a]) (Harness.unbox list) ~f
-      in
-      let actual_first = (Harness.box [@alloc a]) actual_first in
-      let actual_second = (Harness.box [@alloc a]) actual_second in
+      let actual_first, actual_second = List.partition_mapi (Harness.unbox list) ~f in
+      let actual_first = Harness.box actual_first in
+      let actual_second = Harness.box actual_second in
       let index = ref 0 in
       let expected_first, expected_second =
         Stdlib.List.partition_map
@@ -486,58 +423,49 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
             | Second y -> Right (Elt.box y))
           list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual_first expected_first [@nontail];
-      ([%test_eq: Harness.t] [@alloc stack]) actual_second expected_second [@nontail])
+      [%test_eq: Harness.t] actual_first expected_first [@nontail];
+      [%test_eq: Harness.t] actual_second expected_second [@nontail])
   ;;
 
   let%test_unit [%name name "fold_right"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let actual =
-        (List.fold_right [@kind k value] [@mode l l])
-          (Harness.unbox list)
-          ~init:[]
-          ~f:(fun (x : Elt.t) acc -> Elt.box x :: acc [@exclave_if_stack a])
+        List.fold_right (Harness.unbox list) ~init:[] ~f:(fun (x : Elt.t) acc ->
+          Elt.box x :: acc)
       in
       let expected = list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter_opt"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = if Int.(x % of_int_exn 2 = of_int_exn 0) then Some x else None in
-      let actual =
-        (Harness.box [@alloc a])
-          (Harness.unbox list |> List.map ~f |> (List.filter_opt [@kind k] [@alloc a]))
-      in
+      let actual = Harness.box (Harness.unbox list |> List.map ~f |> List.filter_opt) in
       let expected = Stdlib.List.filter_map (fun x -> Elt.box (f (Elt.unbox x))) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "rev_filter_map"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = if Int.(x % of_int_exn 2 = of_int_exn 0) then Some x else None in
-      let actual =
-        (Harness.box [@alloc a]) (List.rev_filter_map (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.rev_filter_map (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.filter_map (fun x -> Elt.box (f (Elt.unbox x))) list
         |> Stdlib.List.rev
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "rev_filter_mapi"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = if i % 2 = 0 then Some Elt.(x / of_int_exn 2) else None in
-      let actual =
-        (Harness.box [@alloc a]) (List.rev_filter_mapi (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.rev_filter_mapi (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.mapi (fun i x -> Elt.box (f i (Elt.unbox x))) list
         |> Stdlib.List.filter_map Fn.id
         |> Stdlib.List.rev
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter_or_null"] =
@@ -546,8 +474,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         if Int.(x % of_int_exn 2 = of_int_exn 0) then This x else Null
       in
       let actual =
-        (Harness.box [@alloc a])
-          (Harness.unbox list |> List.map ~f |> (List.filter_or_null [@alloc a]))
+        Harness.box (Harness.unbox list |> List.map ~f |> List.filter_or_null)
       in
       let expected =
         Stdlib.List.filter_map
@@ -557,7 +484,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
             | Null -> None)
           list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "rev_filter_map_or_null"] =
@@ -565,9 +492,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
       let f x : Int.t or_null =
         if Int.(x % of_int_exn 2 = of_int_exn 0) then This x else Null
       in
-      let actual =
-        (Harness.box [@alloc a]) (List.rev_filter_map_or_null (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.rev_filter_map_or_null (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.filter_map
           (fun x ->
@@ -577,7 +502,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
           list
         |> Stdlib.List.rev
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "rev_filter_mapi_or_null"] =
@@ -585,9 +510,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
       let f i x : Int.t or_null =
         if i % 2 = 0 then This Elt.(x / of_int_exn 2) else Null
       in
-      let actual =
-        (Harness.box [@alloc a]) (List.rev_filter_mapi_or_null (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.rev_filter_mapi_or_null (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.mapi
           (fun i x ->
@@ -598,7 +521,7 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         |> Stdlib.List.filter_map Fn.id
         |> Stdlib.List.rev
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "nth"] =
@@ -617,9 +540,9 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         ;;
       end)
       ~f:(fun (list, idx) ->
-        let actual = (List.nth [@kind k k] [@mode l]) (Harness.unbox list) idx in
+        let actual = List.nth (Harness.unbox list) idx in
         let expected = Stdlib.List.nth_opt list idx in
-        ([%test_eq: Elt.t option] [@alloc stack]) actual expected [@nontail])
+        [%test_eq: Elt.t option] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "nth_or_null"] =
@@ -638,23 +561,20 @@ module [@kind k = value] [@alloc a @ l = (stack_local, heap_global)] _ = struct
         ;;
       end)
       ~f:(fun (list, idx) ->
-        let actual =
-          (List.nth_or_null [@kind k k] [@mode l]) (Harness.unbox list) idx
-          |> (Or_null.to_option [@mode l])
-        in
+        let actual = List.nth_or_null (Harness.unbox list) idx |> Or_null.to_option in
         let expected = Stdlib.List.nth_opt list idx in
-        ([%test_eq: Elt.t option] [@alloc stack]) actual expected [@nontail])
+        [%test_eq: Elt.t option] actual expected [@nontail])
   ;;
 end
 
-module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _ = struct
-  open Harness [@kind k]
+module _ = struct
+  open Harness
 
-  let name = (Name.name [@kind k] [@alloc a])
+  let name = Name.name
 
   let%test_unit [%name name "length"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual = (List.length [@kind k]) (Harness.unbox list) in
+      let actual = List.length (Harness.unbox list) in
       let expected = Stdlib.List.length list in
       [%test_eq: Int.t] actual expected)
   ;;
@@ -662,54 +582,45 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
   let%test_unit [%name name "iter"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let output = ref [] in
-      (List.iter [@kind k] [@mode l]) (Harness.unbox list) ~f:(fun (x : Elt.t) ->
+      List.iter (Harness.unbox list) ~f:(fun (x : Elt.t) ->
         output := Elt.box x :: !output);
-      ([%test_eq: Harness.t] [@alloc stack]) !output (Stdlib.List.rev list))
+      [%test_eq: Harness.t] !output (Stdlib.List.rev list))
   ;;
 
   let%test_unit [%name name "iteri"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let actual = ref [] in
-      (List.iteri [@kind k] [@mode l]) (Harness.unbox list) ~f:(fun i (x : Elt.t) ->
+      List.iteri (Harness.unbox list) ~f:(fun i (x : Elt.t) ->
         actual := ( :: ) ((i, Elt.box x), !actual));
       let expected = ref [] in
       Stdlib.List.iteri (fun i x -> expected := ( :: ) ((i, x), !expected)) list;
-      ([%test_eq: (int * Elt.boxed) list] [@alloc stack]) !actual !expected)
+      [%test_eq: (int * Elt.boxed) list] !actual !expected)
   ;;
 
   let%test_unit [%name name "fold"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let actual =
-        (List.fold [@kind k value_or_null] [@mode l l])
-          (Harness.unbox list)
-          ~init:[]
-          ~f:(fun acc (x : Elt.t) -> Elt.box x :: acc [@exclave_if_stack a])
+        List.fold (Harness.unbox list) ~init:[] ~f:(fun acc (x : Elt.t) ->
+          Elt.box x :: acc)
       in
       let expected = Stdlib.List.rev list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "foldi"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let actual =
-        (List.foldi [@kind k value_or_null] [@mode l l])
-          (Harness.unbox list)
-          ~init:[]
-          ~f:(fun i acc (x : Elt.t) -> (i, Elt.box x) :: acc [@exclave_if_stack a])
+        List.foldi (Harness.unbox list) ~init:[] ~f:(fun i acc (x : Elt.t) ->
+          (i, Elt.box x) :: acc)
       in
       let expected = Stdlib.List.mapi (fun i x -> i, x) list |> Stdlib.List.rev in
-      ([%test_eq: (int * Elt.boxed) list] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: (int * Elt.boxed) list] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "mem"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let target = Elt.of_int_exn 0 in
-      let actual =
-        (List.mem [@kind k] [@mode l])
-          (Harness.unbox list)
-          target
-          ~equal:(Elt.equal [@mode local])
-      in
+      let actual = List.mem (Harness.unbox list) target ~equal:Elt.equal in
       let expected = Stdlib.List.mem (Elt.box target) list in
       [%test_eq: bool] actual expected)
   ;;
@@ -722,24 +633,18 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
       end)
       ~f:(fun (list1, list2) ->
         let actual =
-          (Harness.box [@alloc a])
-            ((List.append [@kind k] [@alloc a])
-               (Harness.unbox list1)
-               (Harness.unbox list2))
+          Harness.box (List.append (Harness.unbox list1) (Harness.unbox list2))
         in
         let expected = Stdlib.List.append list1 list2 in
-        ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+        [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "map"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.(x / of_int_exn 2) in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.map [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.map (Harness.unbox list) ~f) in
       let expected = Stdlib.List.map (fun x -> Elt.box (f (Elt.unbox x))) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "mapi"] =
@@ -748,47 +653,35 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
         let div = i + 1 in
         Elt.(x % of_int_exn div)
       in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.mapi [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.mapi (Harness.unbox list) ~f) in
       let expected = Stdlib.List.mapi (fun i x -> Elt.box (f i (Elt.unbox x))) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.(x % of_int_exn 2 = of_int_exn 0) in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.filter [@kind k] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.filter (Harness.unbox list) ~f) in
       let expected = Stdlib.List.filter (fun x -> f (Elt.unbox x)) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filteri"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f i x = i % 2 = 0 && Elt.(x % of_int_exn 2 = of_int_exn 0) in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.filteri [@kind k] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.filteri (Harness.unbox list) ~f) in
       let expected = Stdlib.List.filteri (fun i x -> f i (Elt.unbox x)) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter_map"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let f x : (Elt.t Option.t[@kind k]) =
+      let f x : Elt.t Option.t =
         if Elt.(x % of_int_exn 3 = of_int_exn 0)
         then Some Elt.(x / of_int_exn 2)
         else None
       in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.filter_map [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.filter_map (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.filter_map
           (fun x ->
@@ -797,18 +690,15 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
             | None -> None)
           list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter_mapi"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let f i x : (Elt.t Option.t[@kind k]) =
+      let f i x : Elt.t Option.t =
         if i % 2 = 1 && Elt.(x > of_int_exn 2) then Some Elt.(x % of_int_exn i) else None
       in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.filter_mapi [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.filter_mapi (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.mapi
           (fun i x ->
@@ -818,7 +708,7 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
           list
         |> Stdlib.List.filter_map Fn.id
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter_map_or_null"] =
@@ -827,9 +717,7 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
         let open Elt in
         if x % of_int_exn 3 = of_int_exn 0 then This (box (x / of_int_exn 2)) else Null
       in
-      let actual =
-        (List.filter_map_or_null [@kind k] [@mode l] [@alloc a]) (Harness.unbox list) ~f
-      in
+      let actual = List.filter_map_or_null (Harness.unbox list) ~f in
       let expected =
         Stdlib.List.filter_map
           (fun x ->
@@ -838,7 +726,7 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
             | Null -> None)
           list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "filter_mapi_or_null"] =
@@ -849,9 +737,7 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
         then This (box (x % of_int_exn i))
         else Null
       in
-      let actual =
-        (List.filter_mapi_or_null [@kind k] [@mode l] [@alloc a]) (Harness.unbox list) ~f
-      in
+      let actual = List.filter_mapi_or_null (Harness.unbox list) ~f in
       let expected =
         Stdlib.List.mapi
           (fun i x ->
@@ -861,40 +747,34 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
           list
         |> Stdlib.List.filter_map Fn.id
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "concat_map"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let f x : (Elt.t List.t[@kind k]) =
+      let f x : Elt.t List.t =
         if Elt.(x % of_int_exn 2 = of_int_exn 0)
         then [ x; Elt.(x / of_int_exn 2) ]
         else [ x ]
       in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.concat_map [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.concat_map (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.concat_map (fun x -> Harness.box (f (Elt.unbox x))) list
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "concat_mapi"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let f i x : (Elt.t List.t[@kind k]) =
+      let f i x : Elt.t List.t =
         if i % 2 = 0 then [ x ] else [ x; Elt.(x % of_int_exn i) ]
       in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.concat_mapi [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.concat_mapi (Harness.unbox list) ~f) in
       let expected =
         Stdlib.List.mapi (fun i x -> Harness.box (f i (Elt.unbox x))) list
         |> Stdlib.List.concat
       in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "init"] =
@@ -908,7 +788,7 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
       ~f:(fun len ->
         let f i = Elt.of_int_exn (i * 2) in
         let actual_result =
-          try Ok ((Harness.box [@alloc a]) ((List.init [@kind k] [@alloc a]) len ~f)) with
+          try Ok (Harness.box (List.init len ~f)) with
           | exn -> Error exn
         in
         let expected_result =
@@ -916,30 +796,26 @@ module [@kind k = (value, bits32)] [@alloc a @ l = (stack_local, heap_global)] _
           | exn -> Error exn
         in
         match actual_result, expected_result with
-        | Ok actual, Ok expected ->
-          ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail]
+        | Ok actual, Ok expected -> [%test_eq: Harness.t] actual expected [@nontail]
         | Error _, Error _ -> () (* Both raised exceptions, which is correct *)
         | _ -> assert false (* One raised exception but the other didn't *))
   ;;
 
   let%test_unit [%name name "rev"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
-      let actual = (Harness.box [@alloc a]) ((List.rev [@kind k]) (Harness.unbox list)) in
+      let actual = Harness.box (List.rev (Harness.unbox list)) in
       let expected = Stdlib.List.rev list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
 
   let%test_unit [%name name "rev_map"] =
     Base_quickcheck.Test.run_exn ~config (module Harness) ~f:(fun list ->
       let f x = Elt.(x / of_int_exn 2) in
-      let actual =
-        (Harness.box [@alloc a])
-          ((List.rev_map [@kind k k] [@mode l] [@alloc a]) (Harness.unbox list) ~f)
-      in
+      let actual = Harness.box (List.rev_map (Harness.unbox list) ~f) in
       let expected = Stdlib.List.rev_map (fun x -> Elt.box (f (Elt.unbox x))) list in
-      ([%test_eq: Harness.t] [@alloc stack]) actual expected [@nontail])
+      [%test_eq: Harness.t] actual expected [@nontail])
   ;;
-end]
+end
 
 let%expect_test "find_exn" =
   let show f sexp_of_ok = print_s [%sexp (Result.try_with f : (ok, exn) Result.t)] in
@@ -2463,10 +2339,7 @@ let%expect_test "[compare__local] is the same as [compare]" =
       type t = int list * int list [@@deriving sexp_of, quickcheck]
     end)
     ~f:(fun (l1, l2) ->
-      require_equal
-        (module Int)
-        (compare Int.compare l1 l2)
-        (compare__local Int.compare__local l1 l2));
+      require_equal (module Int) (compare Int.compare l1 l2) (compare Int.compare l1 l2));
   [%expect {| |}]
 ;;
 
@@ -2476,10 +2349,7 @@ let%expect_test "[equal__local] is the same as [equal]" =
       type t = int list * int list [@@deriving sexp_of, quickcheck]
     end)
     ~f:(fun (l1, l2) ->
-      require_equal
-        (module Bool)
-        (equal Int.equal l1 l2)
-        (equal__local Int.equal__local l1 l2));
+      require_equal (module Bool) (equal Int.equal l1 l2) (equal Int.equal l1 l2));
   [%expect {| |}]
 ;;
 

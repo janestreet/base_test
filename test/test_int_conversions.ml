@@ -233,7 +233,7 @@ module%test Make_hex = struct
     type t = int [@@deriving quickcheck]
 
     module M = Make_hex (struct
-        type nonrec t = int [@@deriving sexp, compare ~localize, hash, quickcheck]
+        type nonrec t = int [@@deriving sexp, compare, hash, quickcheck]
 
         let to_string = Int.Hex.to_string
         let of_string = Int.Hex.of_string

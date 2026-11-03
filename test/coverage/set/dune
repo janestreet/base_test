@@ -4,6 +4,6 @@
  (inline_tests)
  (libraries base base_quickcheck base_test_coverage_helpers
    expect_test_helpers_base sexp_grammar)
- (flags :standard -w -67)
+ (flags :standard -w -unused-functor-parameter -w -unused-value-declaration)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane -compare-require-explicit-locality)))

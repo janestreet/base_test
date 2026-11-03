@@ -65,7 +65,7 @@ let%expect_test "[choose], [choose_exn], [choose_randomly], [choose_randomly_exn
              : (_ * _) Or_error.t)
           ~choose_local:
             ([%globalize: (int Modes.Global.t * int Modes.Global.t) option]
-               [%template (Hashtbl.choose [@mode local]) t]
+               (Hashtbl.choose_local t)
              : (_ * _) option)
           ~choose_randomly:(Hashtbl.choose_randomly t : (_ * _) option)
           ~choose_randomly_exn:
@@ -215,24 +215,20 @@ let%expect_test "Hashtbl.change_or_null" =
 ;;
 
 let%expect_test "smoke tests for templated versions" =
-  let module%template StrO = struct
+  let module StrO = struct
     type t = string option [@@deriving compare, equal, sexp]
   end
   in
-  let t = (Hashtbl.create [@kind float64 value_or_null]) (module Float_u) in
-  (Hashtbl.set [@kind float64 value_or_null]) t ~key:1.0 ~data:"foo";
-  require ((Hashtbl.mem [@kind float64 value_or_null]) t 1.0);
-  require (not @@ (Hashtbl.mem [@kind float64 value_or_null]) t 2.0);
-  require_equal (module StrO) ((Hashtbl.find [@kind float64 value_or_null]) t 2.0) None;
-  require_equal
-    (module StrO)
-    ((Hashtbl.find [@kind float64 value_or_null]) t 1.0)
-    (Some "foo");
-  (Hashtbl.add_exn [@kind float64 value_or_null]) t ~key:0.0 ~data:"zero";
-  require_does_raise (fun () ->
-    (Hashtbl.add_exn [@kind float64 value_or_null]) t ~key:0.0 ~data:"zero");
+  let t = Hashtbl.create (module Float_u) in
+  Hashtbl.set t ~key:1.0 ~data:"foo";
+  require (Hashtbl.mem t 1.0);
+  require (not @@ Hashtbl.mem t 2.0);
+  require_equal (module StrO) (Hashtbl.find t 2.0) None;
+  require_equal (module StrO) (Hashtbl.find t 1.0) (Some "foo");
+  Hashtbl.add_exn t ~key:0.0 ~data:"zero";
+  require_does_raise (fun () -> Hashtbl.add_exn t ~key:0.0 ~data:"zero");
   [%expect {| ("Hashtbl.add_exn got key already present" 0) |}];
-  print_s [%sexp (t : ((Float_u.t, string) Hashtbl.t[@kind float64 value_or_null]))];
+  print_s [%sexp (t : (Float_u.t, string) Hashtbl.t)];
   [%expect
     {|
     ((0 zero)

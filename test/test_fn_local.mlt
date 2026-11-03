@@ -19,7 +19,7 @@ let f : 'a. local_ 'a -> 'a = Fn.id
 [%%expect
   {|
 Line _, characters _-_:
-Error: This expression has type 'b @ local -> 'b @ local
+Error: The value Fn.id has type 'b @ local -> 'b @ local
        but an expression was expected of type 'a @ local -> 'a
 |}]
 
@@ -32,6 +32,6 @@ let f : 'a. 'a -> local_ 'a = Fn.id
 [%%expect
   {|
 Line _, characters _-_:
-Error: This expression has type 'b -> 'b
+Error: The value Fn.id has type 'b -> 'b
        but an expression was expected of type 'a -> 'a @ local
 |}]

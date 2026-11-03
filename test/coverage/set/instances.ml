@@ -46,8 +46,8 @@ module Tree = struct
 
   type t = (int, Int.comparator_witness) Types.t
 
-  let compare = Comparable.lift Toplevel.compare ~f:(Set.of_tree (module Elt))
-  let equal = Comparable.lift Toplevel.equal ~f:(Set.of_tree (module Elt))
+  let compare = Set.Using_comparator.Tree.compare_direct ~comparator:Elt.comparator
+  let equal = Set.Using_comparator.Tree.equal ~comparator:Elt.comparator
   let sexp_of_t t = Toplevel.sexp_of_t (Set.of_tree (module Elt) t)
   let create f = f ~comparator:Int.comparator
   let access f = f ~comparator:Int.comparator

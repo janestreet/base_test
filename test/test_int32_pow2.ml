@@ -16,8 +16,8 @@ let%expect_test "[floor_log2]" =
   print_for examples floor_log2;
   [%expect
     {|
-    (-1 (Error ("[Int32.floor_log2] got invalid input" -1)))
-    (0 (Error ("[Int32.floor_log2] got invalid input" 0)))
+    (-1 (Error (Invalid_argument "Int32.floor_log2: -1")))
+    (0 (Error (Invalid_argument "Int32.floor_log2: 0")))
     (1 (Ok 0))
     (2 (Ok 1))
     (3 (Ok 1))
@@ -36,8 +36,8 @@ let%expect_test ("[floor_log2]" [@tags "64-bits-only"]) =
   print_for examples_64_bit floor_log2;
   [%expect
     {|
-    (-2_147_483_648 (Error ("[Int32.floor_log2] got invalid input" -2147483648)))
-    (-2_147_483_647 (Error ("[Int32.floor_log2] got invalid input" -2147483647)))
+    (-2_147_483_648 (Error (Invalid_argument "Int32.floor_log2: -2147483648")))
+    (-2_147_483_647 (Error (Invalid_argument "Int32.floor_log2: -2147483647")))
     (2_147_483_646 (Ok 30))
     (2_147_483_647 (Ok 30))
     |}]
@@ -47,8 +47,8 @@ let%expect_test "[ceil_log2]" =
   print_for examples ceil_log2;
   [%expect
     {|
-    (-1 (Error ("[Int32.ceil_log2] got invalid input" -1)))
-    (0 (Error ("[Int32.ceil_log2] got invalid input" 0)))
+    (-1 (Error (Invalid_argument "Int32.ceil_log2: -1")))
+    (0 (Error (Invalid_argument "Int32.ceil_log2: 0")))
     (1 (Ok 0))
     (2 (Ok 1))
     (3 (Ok 2))
@@ -67,8 +67,8 @@ let%expect_test ("[ceil_log2]" [@tags "64-bits-only"]) =
   print_for examples_64_bit ceil_log2;
   [%expect
     {|
-    (-2_147_483_648 (Error ("[Int32.ceil_log2] got invalid input" -2147483648)))
-    (-2_147_483_647 (Error ("[Int32.ceil_log2] got invalid input" -2147483647)))
+    (-2_147_483_648 (Error (Invalid_argument "Int32.ceil_log2: -2147483648")))
+    (-2_147_483_647 (Error (Invalid_argument "Int32.ceil_log2: -2147483647")))
     (2_147_483_646 (Ok 31))
     (2_147_483_647 (Ok 31))
     |}]

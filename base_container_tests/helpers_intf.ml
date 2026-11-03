@@ -27,15 +27,13 @@ module Definitions = struct
 
   (** [Testable] describes how to generate, compare, and serialize containers and
       elements. This is the input to the [Test] module below. *)
-  module type%template [@alloc a @ l = (heap_global, stack_local)] Testable = sig
+  module type Testable = sig
     module Elt : sig
-      type 'a t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type 'a t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
     module Cont : sig
-      type 'a t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      type 'a t [@@deriving equal, quickcheck, sexp_of]
     end
 
     module Concat : sig
@@ -46,30 +44,23 @@ module Definitions = struct
     end
   end
 
-  module type%template [@mode global] Output = sig
+  module type Output = sig
     type t [@@deriving equal, sexp_of]
-  end
-
-  module type%template [@mode local] Output = sig
-    type t [@@deriving equal ~localize, sexp_of ~stackify]
   end
 
   (** [Test] provides helpers for building quickcheck expect tests. Use these when
       constructing an instance of [Coverage], above. *)
-  module type%template [@alloc a @ l = (heap_global, stack_local)] Test = sig
+  module type Test = sig
     type 'a elt
     type 'a container
     type 'a concat
 
     module Elt : sig
-      type t = int elt
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type t = int elt [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
     module Cont : sig
-      type t = int container
-      [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      type t = int container [@@deriving equal, quickcheck, sexp_of]
     end
 
     (** We often want to test a function using a container, and some element to operate on
@@ -94,8 +85,7 @@ module Definitions = struct
       (** Sort "actual" results, i.e. the output of a container traversal. Specifically,
           if the container produces unpredictable ordering, sort the elements in ascending
           order. Otherwise, does nothing. *)
-      val%template actual : Elt.t list -> Elt.t list
-      [@@mode l = (local, global)]
+      val actual : Elt.t list -> Elt.t list
 
       (** Sort "expected" results, i.e. the output of a reference implementation. Removes
           duplicates and/or sorts elements so the output is consistent with what
@@ -110,7 +100,7 @@ module Definitions = struct
        that functions do not allocate. *)
 
     (** Helpers for support of containers templated across locality *)
-    module%template Locality : sig
+    module Locality : sig
       (* These are necessary to do some conditional logic on whether a test, as
          instantiated from a template, should test for no allocations *)
       type mode =
@@ -121,8 +111,8 @@ module Definitions = struct
         | Heap
         | Stack
 
-      val mode : mode [@@mode l = (global, local)]
-      val alloc : alloc [@@alloc a = (heap, stack)]
+      val mode : mode
+      val alloc : alloc
 
       (** Used when a test expects not to allocate only when it returns a [local]. *)
       val is_local : mode -> bool
@@ -131,21 +121,19 @@ module Definitions = struct
       val is_stack : alloc -> bool
 
       val smart_globalize : ('a -> 'a) -> 'a -> 'a
-      [@@mode li = (global, l), lo = (global, l)]
 
       (** Short-hand for [List.globalize Elt.globalize] *)
       val elt_list_globalize : Elt.t list -> Elt.t list
 
-      val elt_smart_globalize : Elt.t -> Elt.t [@@mode li = (global, l), lo = (global, l)]
+      val elt_smart_globalize : Elt.t -> Elt.t
 
       (** Short-hand for templated-instantiated [List.mem] with [Elt.equal] *)
       val elt_list_mem : Elt.t list -> Elt.t -> bool
-      [@@mode l = (global, l)]
 
       (* These helpers are necessary in tests that only template by mode, as underlying
          functions would template by alloc *)
-      val list_rev : 'a list -> 'a list [@@mode l = (global, local)]
-      val result_return : 'a -> ('a, 'b) result [@@mode l = (global, local)]
+      val list_rev : 'a list -> 'a list
+      val result_return : 'a -> ('a, 'b) result
     end
 
     (** When testing a function, provide the following:
@@ -173,21 +161,20 @@ module Definitions = struct
     val test_fn
       :  'fn
       -> (module Base_quickcheck.Test.S with type t = 'input)
-      -> ((module Output with type t = 'output)[@mode l])
+      -> (module Output with type t = 'output)
       -> name:string
       -> description:string
       -> actual:('fn -> 'input -> 'output)
       -> expect:('input -> 'output)
       -> expect_no_allocation:bool
       -> unit
-    [@@mode.explicit l = (global, l)]
 
     (** Like [test_fn]; runs [expect_if_unpredictable] if the output for a container with
         unpredictable ordering cannot simply be compared against a reference value. *)
     val test_fn_nondeterministic
       :  'fn
       -> (module Base_quickcheck.Test.S with type t = 'input)
-      -> ((module Output with type t = 'output)[@mode l])
+      -> (module Output with type t = 'output)
       -> name:string
       -> description:string
       -> actual:('fn -> 'input -> 'output)
@@ -195,7 +182,6 @@ module Definitions = struct
       -> expect_if_unpredictable:('input -> 'output -> bool)
       -> expect_no_allocation:bool
       -> unit
-    [@@mode.explicit l = (global, l)]
   end
 end
 
@@ -209,13 +195,8 @@ module type Helpers = sig
   val test_m : (module Coverage) -> unit
 
   (** Provides an instance of [Test]. Instantiate when implementing [Coverage]. *)
-  module%template
-    [@alloc a @ l = (heap_global, stack_local)] Test
-      (Config : Config)
-      (Testable : Testable
-    [@alloc a]) :
+  module Test (Config : Config) (Testable : Testable) :
     Test
-    [@alloc a]
     with type 'a elt := 'a Testable.Elt.t
      and type 'a container := 'a Testable.Cont.t
      and type 'a concat := 'a Testable.Concat.t

@@ -36,22 +36,10 @@ Line _, characters _-_:
 Error: This type (int, Modes.At_locality.local) Modes.At_locality.t
        should be an instance of type ('a : value mod global)
        The kind of (int, Modes.At_locality.local) Modes.At_locality.t is
-           value
-             mod forkable unyielding many stateless aliased immutable
-             with Modes.At_locality.actually_local
-                    @@
-                    forkable
-                    unyielding
-                    many
-                    portable
-                    aliased
-                    contended.
+           value mod forkable unyielding many aliased stateless immutable.
        But the kind of (int, Modes.At_locality.local) Modes.At_locality.t must be a subkind of
          value mod global
          because of the definition of require_global at file "test_modes.mlt", line 7, characters 0-43.
-
-       The first mode-crosses less than the second along:
-         locality: mod local ≰ mod global
 |}]
 
 let doesn't_cross_locality
@@ -136,7 +124,7 @@ Error: This type
        The kind of (int -> int, Modes.At_portability.nonportable)
                    Modes.At_portability.t is
            value
-             mod portable aliased immutable
+             mod aliased immutable portable
              with Modes.At_portability.nonportable_ @@ aliased contended.
        But the kind of (int -> int, Modes.At_portability.nonportable)
                        Modes.At_portability.t must be a subkind of

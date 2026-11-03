@@ -8,7 +8,7 @@ module%test _ : module type of Queue = struct
 
   let does_raise = Exn.does_raise
 
-  type nonrec 'a t = 'a t [@@deriving sexp ~stackify, sexp_grammar]
+  type nonrec 'a t = 'a t [@@deriving sexp, sexp_grammar]
 
   let globalize = globalize
 
@@ -217,7 +217,7 @@ module%test _ : module type of Queue = struct
     [%test_result: (int * int) list] (to_list t') ~expect:[]
   ;;
 
-  include%template Test_container.Test_S1 [@modality portable] (Queue)
+  include Test_container.Test_S1 (Queue)
 
   let dequeue_exn = [%eta1 dequeue_exn]
   let enqueue = enqueue
@@ -374,9 +374,7 @@ module%test _ : module type of Queue = struct
   ;;
 
   let compare = compare
-  let compare__local = compare__local
   let equal = equal
-  let equal__local = equal__local
 
   module%test [@name "comparisons"] _ = struct
     let sign x = if x < 0 then ~-1 else if x > 0 then 1 else 0
@@ -389,11 +387,11 @@ module%test _ : module type of Queue = struct
         (sign (compare Int.compare t1 t2))
         ~expect:(sign (List.compare Int.compare (to_list t1) (to_list t2)));
       [%test_result: bool]
-        (equal__local Int.equal__local t1 t2)
-        ~expect:(List.equal__local Int.equal__local (to_list t1) (to_list t2));
+        (equal Int.equal t1 t2)
+        ~expect:(List.equal Int.equal (to_list t1) (to_list t2));
       [%test_result: int]
-        (sign (compare__local Int.compare__local t1 t2))
-        ~expect:(sign (List.compare__local Int.compare__local (to_list t1) (to_list t2)))
+        (sign (compare Int.compare t1 t2))
+        ~expect:(sign (List.compare Int.compare (to_list t1) (to_list t2)))
     ;;
 
     let lists =

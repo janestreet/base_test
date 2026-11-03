@@ -408,10 +408,10 @@ let%expect_test "or_null elements" =
 ;;
 
 (* Invariant tests *)
-module%test [@tags "no-js"] _ : module type of struct
+module%test [@tags "64-bits-only"] _ : module type of struct
   include Uniform_array
 end = struct
-  type 'a t = 'a Uniform_array.t [@@deriving compare ~localize, sexp_of ~stackify]
+  type 'a t = 'a Uniform_array.t [@@deriving compare, sexp_of]
 
   let t_sexp_grammar = Uniform_array.t_sexp_grammar
   let invariant = Uniform_array.invariant
@@ -508,7 +508,7 @@ end = struct
   (* Accessors, no invariant to test here *)
 
   let length = Uniform_array.length
-  let%template get = (Uniform_array.get [@mode c]) [@@mode c = (uncontended, shared)]
+  let get = Uniform_array.get
   let unsafe_get = Uniform_array.unsafe_get
   let set = Uniform_array.set
   let unsafe_set = Uniform_array.unsafe_set
@@ -526,7 +526,7 @@ end = struct
     Uniform_array.unsafe_to_array_inplace__promise_not_a_float
   ;;
 
-  let%template to_array = (Uniform_array.to_array [@alloc a]) [@@alloc a = (heap, stack)]
+  let to_array = Uniform_array.to_array
   let to_list = Uniform_array.to_list
   let blit = Uniform_array.blit
   let blito = Uniform_array.blito

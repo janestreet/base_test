@@ -17,25 +17,25 @@ end
 module I : S with type t = int = struct
   include Int
 
-  let random = Random.State.int_incl
+  let random = [%eta3 Random.State.int_incl]
 end
 
 module Native : S with type t = nativeint = struct
   include Nativeint
 
-  let random = Random.State.nativeint_incl
+  let random = [%eta3 Random.State.nativeint_incl]
 end
 
 module I32 : S with type t = int32 = struct
   include Int32
 
-  let random = Random.State.int32_incl
+  let random = [%eta3 Random.State.int32_incl]
 end
 
 module I64 : S with type t = int64 = struct
   include Int64
 
-  let random = Random.State.int64_incl
+  let random = [%eta3 Random.State.int64_incl]
 end
 
 module I63 : S with type t = Int63.t = struct

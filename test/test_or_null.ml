@@ -11,7 +11,7 @@ end = struct
   module T = Or_null.T
   include T
 
-  [%%rederive type nonrec 'a t = 'a Or_null.t [@@deriving sexp ~stackify]]
+  [%%rederive type nonrec 'a t = 'a Or_null.t [@@deriving sexp]]
 
   let globalize = globalize_or_null
 
@@ -43,7 +43,7 @@ end = struct
     [%expect {| 333_169_405 |}]
   ;;
 
-  let%template[@mode m = (global, local)] compare = (Or_null.compare [@mode m])
+  let compare = Or_null.compare
 
   let%expect_test "compare" =
     let test t1 t2 =
@@ -77,7 +77,7 @@ end = struct
     [%expect {| ((t1 (10)) (t2 (20)) (result -1)) |}]
   ;;
 
-  let%template[@mode m = (global, local)] equal = (Or_null.equal [@mode m])
+  let equal = Or_null.equal
 
   let%expect_test "equal" =
     let test t1 t2 =
@@ -131,9 +131,7 @@ end = struct
     [%expect {| ("length (This 42)" 1) |}]
   ;;
 
-  let%template[@mode m = (global, local)] to_option t =
-    (Or_null.to_option [@mode m]) t [@exclave_if_local m]
-  ;;
+  let to_option t = Or_null.to_option t
 
   let%expect_test "to_option" =
     print_s [%sexp (to_option Null : int option)];
@@ -142,9 +140,7 @@ end = struct
     [%expect {| (42) |}]
   ;;
 
-  let%template[@alloc a = (heap, stack)] map_to_option =
-    (Or_null.map_to_option [@alloc a])
-  ;;
+  let map_to_option = Or_null.map_to_option
 
   let%expect_test "map_to_option" =
     let f x = x + 1 in
@@ -154,9 +150,7 @@ end = struct
     [%expect {| (43) |}]
   ;;
 
-  let%template[@mode m = (global, local)] of_option o =
-    (Or_null.of_option [@mode m]) o [@exclave_if_local m]
-  ;;
+  let of_option o = Or_null.of_option o
 
   let%expect_test "of_option" =
     print_s [%sexp (of_option None : int or_null)];
@@ -165,9 +159,7 @@ end = struct
     [%expect {| (42) |}]
   ;;
 
-  let%template[@mode m = (global, local)] value t ~default =
-    (Or_null.value [@mode m]) t ~default [@exclave_if_local m]
-  ;;
+  let value t ~default = Or_null.value t ~default
 
   let%expect_test "value" =
     print_s [%sexp (value Null ~default:42 : int)];
@@ -176,9 +168,7 @@ end = struct
     [%expect {| 5 |}]
   ;;
 
-  let%template[@mode m = (global, local)] value_exn ?(here = Stdlib.Lexing.dummy_pos) t =
-    (Or_null.value_exn [@mode m]) ~here t [@exclave_if_local m]
-  ;;
+  let value_exn ?(here = Stdlib.Lexing.dummy_pos) t = Or_null.value_exn ~here t
 
   let%expect_test "value_exn" =
     (* Location information should be excluded when [here] is [Lexing.dummy_pos], which is
@@ -193,16 +183,14 @@ end = struct
     [%expect {| "Or_null.value_exn Null" |}]
   ;;
 
-  let%template[@mode m = (global, local)] unsafe_value = (Or_null.unsafe_value [@mode m])
+  let unsafe_value = Or_null.unsafe_value
 
   let%expect_test "unsafe_value" =
     print_s [%sexp (unsafe_value (This 42) : int)];
     [%expect {| 42 |}]
   ;;
 
-  let%template[@mode m = (global, local)] value_or_thunk =
-    (Or_null.value_or_thunk [@mode m])
-  ;;
+  let value_or_thunk = Or_null.value_or_thunk
 
   let%expect_test "value_or_thunk" =
     let default () =
@@ -233,7 +221,7 @@ end = struct
       |}]
   ;;
 
-  let%template[@mode m = (global, local)] value_map = (Or_null.value_map [@mode m])
+  let value_map = Or_null.value_map
 
   let%expect_test "value_map" =
     print_s [%sexp (value_map Null ~default:42 ~f:(fun x -> x * 2) : int)];
@@ -242,16 +230,14 @@ end = struct
     [%expect {| 10 |}]
   ;;
 
-  let%template[@mode m = (global, local)] this x =
-    (Or_null.this [@mode m]) x [@exclave_if_local m]
-  ;;
+  let this x = Or_null.this x
 
   let%expect_test "this" =
     print_s [%sexp (this 42 : int or_null)];
     [%expect {| (42) |}]
   ;;
 
-  let%template[@mode m = (global, local)] both = (Or_null.both [@mode m])
+  let both = Or_null.both
 
   let%expect_test "both" =
     print_s [%sexp (both Null Null : (int * int) or_null)];
@@ -264,9 +250,7 @@ end = struct
     [%expect {| ((1 2)) |}]
   ;;
 
-  let%template[@mode m = (global, local)] this_if b a =
-    (Or_null.this_if [@mode m]) b a [@exclave_if_local m]
-  ;;
+  let this_if b a = Or_null.this_if b a
 
   let%expect_test "this_if" =
     print_s [%sexp (this_if true 42 : int or_null)];
@@ -275,9 +259,7 @@ end = struct
     [%expect {| () |}]
   ;;
 
-  let%template[@mode m = (global, local)] this_if_thunk =
-    (Or_null.this_if_thunk [@mode m])
-  ;;
+  let this_if_thunk = Or_null.this_if_thunk
 
   let%expect_test "this_if_thunk" =
     (* In the [false] case, don't run the thunk *)
@@ -298,7 +280,7 @@ end = struct
       |}]
   ;;
 
-  let%template[@mode m = (global, local)] iter = (Or_null.iter [@mode m])
+  let iter = Or_null.iter
 
   let%expect_test "iter" =
     iter Null ~f:(fun _ -> print_cr [%sexp "[iter Null ~f] should not call [f]"]);
@@ -315,7 +297,7 @@ end = struct
     [%expect {| 3 |}]
   ;;
 
-  let%template[@mode m = (global, local)] call = (Or_null.call [@mode m])
+  let call = Or_null.call
 
   let%expect_test "call" =
     call 42 ~f:Null;
@@ -324,9 +306,7 @@ end = struct
     [%expect {| (value 42) |}]
   ;;
 
-  let%template[@mode m = (global, local)] first_this a b =
-    (Or_null.first_this [@mode m]) a b [@exclave_if_local m]
-  ;;
+  let first_this a b = Or_null.first_this a b
 
   let%expect_test "first_this" =
     print_s [%sexp (first_this Null Null : int or_null)];
@@ -339,9 +319,7 @@ end = struct
     [%expect {| (1) |}]
   ;;
 
-  let%template[@mode m = (global, local)] first_this_thunk =
-    (Or_null.first_this_thunk [@mode m])
-  ;;
+  let first_this_thunk = Or_null.first_this_thunk
 
   let%expect_test "first_this_thunk" =
     print_s [%sexp (first_this_thunk Null (fun () -> Null) : int or_null)];
@@ -354,7 +332,7 @@ end = struct
     [%expect {| (2) |}]
   ;;
 
-  let%template[@mode m = (global, local)] map = (Or_null.map [@mode m])
+  let map = Or_null.map
 
   let%expect_test "map" =
     let double x = x * 2 in
@@ -364,7 +342,7 @@ end = struct
     [%expect {| (42) |}]
   ;;
 
-  let%template[@mode m = (global, local)] bind = (Or_null.bind [@mode m])
+  let bind = Or_null.bind
 
   let%expect_test "bind" =
     let maybe_double x = if x > 0 then This (x * 2) else Null in
@@ -376,9 +354,7 @@ end = struct
     [%expect {| () |}]
   ;;
 
-  let%template[@mode m = (global, local), n = (global, local)] fold =
-    (Or_null.fold [@mode m n])
-  ;;
+  let fold = Or_null.fold
 
   let%expect_test "fold" =
     let fold orn = fold orn ~init:42 ~f:(fun acc x -> acc + x) in
@@ -388,11 +364,8 @@ end = struct
     [%expect {| ("fold (This 100)" 142) |}]
   ;;
 
-  let%template[@mode m = (global, local)] to_list t =
-    (Or_null.to_list [@mode m]) t [@exclave_if_local m]
-  ;;
-
-  let%template[@mode m = (global, local)] to_array = (Or_null.to_array [@mode m])
+  let to_list t = Or_null.to_list t
+  let to_array = Or_null.to_array
 
   let%expect_test "to_list and to_array" =
     let test_conversions t =
@@ -404,7 +377,7 @@ end = struct
     [%expect {| (("to_list t" (42)) ("to_array t" (42))) |}]
   ;;
 
-  let%template[@mode m = (global, local)] mem = (Or_null.mem [@mode m])
+  let mem = Or_null.mem
 
   let%expect_test "mem" =
     let mem orn value = mem orn value ~equal:Int.equal in
@@ -416,8 +389,8 @@ end = struct
     [%expect {| ("mem (This 42) 100" false) |}]
   ;;
 
-  let%template[@mode m = (global, local)] exists = (Or_null.exists [@mode m])
-  let%template[@mode m = (global, local)] for_all = (Or_null.for_all [@mode m])
+  let exists = Or_null.exists
+  let for_all = Or_null.for_all
 
   let%expect_test "exists and for_all" =
     let is_positive x = x > 0 in
@@ -433,7 +406,7 @@ end = struct
     [%expect {| (("exists t ~f:is_positive" false) ("for_all t ~f:is_positive" false)) |}]
   ;;
 
-  let%template[@mode m = (global, local)] find = (Or_null.find [@mode m])
+  let find = Or_null.find
 
   let%expect_test "find" =
     let is_even x = x % 2 = 0 in
@@ -445,7 +418,7 @@ end = struct
     [%expect {| (2) |}]
   ;;
 
-  let%template[@mode m = (global, local)] try_with = (Or_null.try_with [@mode m])
+  let try_with = Or_null.try_with
 
   let%expect_test "try_with" =
     print_s [%sexp (try_with (fun () -> 42) : int or_null)];
@@ -454,9 +427,7 @@ end = struct
     [%expect {| () |}]
   ;;
 
-  let%template[@mode m = (global, local)] try_with_join =
-    (Or_null.try_with_join [@mode m])
-  ;;
+  let try_with_join = Or_null.try_with_join
 
   let%expect_test "try_with_join" =
     print_s [%sexp (try_with_join (fun () -> This 42) : int or_null)];
@@ -467,7 +438,7 @@ end = struct
     [%expect {| () |}]
   ;;
 
-  let%template[@mode m = (global, local)] merge = (Or_null.merge [@mode m])
+  let merge = Or_null.merge
 
   let%expect_test "merge" =
     let f = ( + ) in

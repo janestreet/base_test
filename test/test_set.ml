@@ -276,7 +276,7 @@ module%test [@name "element selection"] _ = struct
 end
 
 (* This is flaky depending on runtime details. *)
-let%expect_test ("space" [@tags "no-js", "disabled"]) =
+let%expect_test ("space" [@tags "64-bits-only", "disabled"]) =
   let create ~length ~construction =
     let array = Array.init length ~f:Int.succ in
     match construction with

@@ -88,8 +88,7 @@ module%test Avoid_stack_overflow = struct
     let err = Error.of_string "A" |> Modes.Portable.wrap in
     List.init n ~f:(fun _ -> err)
     |> List.fold_right ~init:err ~f:(fun err1 err2 ->
-      (Error.of_list [@mode portable]) [ err1.portable; err2.portable ]
-      |> Modes.Portable.wrap)
+      Error.of_list [ err1.portable; err2.portable ] |> Modes.Portable.wrap)
     |> Modes.Portable.unwrap
     |> Error.to_info
     |> (ignore : Info.t -> unit)
@@ -142,25 +141,20 @@ module%test Portable_feature_parity = struct
       | Of_lazy_t x ->
         Error.of_portable_lazy_t (Portable_lazy.from_fun (fun () -> interpret_portable x))
       | Of_list xs ->
-        (Error.of_list [@mode portable])
+        Error.of_list
           (List.map (Modes.Portable.wrap_list xs) ~f:(fun x ->
              x |> Modes.Portable.unwrap |> interpret_portable |> Modes.Portable.wrap)
            |> Modes.Portable.unwrap_list)
-      | Tag (x, tag) ->
-        (Error.tag [@mode portable]) (interpret_portable x) ~tag:(Ab.to_string tag)
-      | Tag_s (x, tag) ->
-        (Error.tag_s [@mode portable]) (interpret_portable x) ~tag:(Ab.sexp_of_t tag)
+      | Tag (x, tag) -> Error.tag (interpret_portable x) ~tag:(Ab.to_string tag)
+      | Tag_s (x, tag) -> Error.tag_s (interpret_portable x) ~tag:(Ab.sexp_of_t tag)
       | Tag_arg (x, message, v) ->
-        (Error.tag_arg [@mode portable])
-          (interpret_portable x)
-          (Ab.to_string message)
-          v
-          (fun x -> Ab.sexp_of_t x)
+        Error.tag_arg (interpret_portable x) (Ab.to_string message) v (fun x ->
+          Ab.sexp_of_t x)
       | Tag_portable_lazy (x, tag) ->
-        (Error.tag_s_portable_lazy [@mode portable])
+        Error.tag_s_portable_lazy
           (interpret_portable x)
           ~tag:(Portable_lazy.from_fun (fun () -> Ab.sexp_of_t tag))
-      | Of_thunk ab -> (Error.of_thunk [@mode portable]) (fun () -> Ab.to_string ab)
+      | Of_thunk ab -> Error.of_thunk (fun () -> Ab.to_string ab)
     ;;
   end
 

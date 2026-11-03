@@ -16,7 +16,7 @@ module Maybe_bound : sig
     include Base.Maybe_bound
   end
 
-  type 'a t = 'a Maybe_bound.t [@@deriving equal ~localize, quickcheck]
+  type 'a t = 'a Maybe_bound.t [@@deriving equal, quickcheck]
 
   val to_list : 'a t -> 'a list
 end

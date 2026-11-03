@@ -40,6 +40,15 @@ let%expect_test "peek" =
   [%expect {| (forced) |}]
 ;;
 
+let%test_unit "Portable_lazy Let_syntax" =
+  let t =
+    let%map.Portable_lazy x = Portable_lazy.from_val 1
+    and y = Portable_lazy.from_val 2 in
+    x + y
+  in
+  [%test_result: int] (Portable_lazy.force t) ~expect:3
+;;
+
 module%test _ = struct
   module M1 = struct
     type nonrec t = { x : int t } [@@deriving sexp_of]

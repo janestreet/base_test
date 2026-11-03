@@ -26,7 +26,7 @@ module Maybe_bound = struct
     | Incl of 'a
     | Excl of 'a
     | Unbounded
-  [@@deriving equal ~localize, quickcheck]
+  [@@deriving equal, quickcheck]
 
   let to_list = function
     | Incl x | Excl x -> [ x ]

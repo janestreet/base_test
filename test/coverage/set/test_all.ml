@@ -35,7 +35,7 @@ module type Creators_and_accessors_and_transformers_generic =
   Creators_and_accessors_and_transformers_generic
 
 module type Creators_generic = Creators_generic
-module type%template Elt_plain = Set.Elt_plain [@mode m] [@@mode m = (local, global)]
+module type Elt_plain = Set.Elt_plain
 module type Enum = Enum
 module type For_deriving = For_deriving
 module type S_poly = S_poly
@@ -62,7 +62,7 @@ module type Hash_fold_m = Hash_fold_m
 module type Globalize_m = Globalize_m
 module type M_sexp_grammar = M_sexp_grammar
 module type M_of_sexp = M_of_sexp
-module type%template [@alloc a = (heap, stack)] Sexp_of_m = Sexp_of_m [@alloc a]
+module type Sexp_of_m = Sexp_of_m
 
 (** functor for ppx deriving - tested below *)
 
@@ -92,7 +92,7 @@ let%expect_test "sexp_of_t" =
   [%expect {| (1 2 3 4 5 6 9) |}]
 ;;
 
-let%template[@alloc a = (heap, stack)] sexp_of_m__t = (sexp_of_m__t [@alloc a])
+let sexp_of_m__t = sexp_of_m__t
 let m__t_of_sexp = m__t_of_sexp
 
 let%expect_test _ =
@@ -115,11 +115,8 @@ let%expect_test _ =
 (** comparisons *)
 
 let compare = compare
-let compare__local = compare__local
 let compare_m__t = compare_m__t
-let compare_m__t__local = compare_m__t__local
 let equal_m__t = equal_m__t
-let equal_m__t__local = equal_m__t__local
 
 let%expect_test _ =
   quickcheck_m (module Instance_pair) ~f:(fun (a, b) ->
@@ -207,13 +204,8 @@ end
 
 (** Portable empty *)
 
-let%template empty = (empty [@mode portable]) [@@mode portable]
-
 let%expect_test "" =
-  require_equal
-    (module Sexp)
-    [%sexp ((empty [@mode portable]) (module Sexp) : Set.M(Sexp).t)]
-    [%sexp []]
+  require_equal (module Sexp) [%sexp (empty (module Sexp) : Set.M(Sexp).t)] [%sexp []]
 ;;
 
 (** tree interface *)
@@ -335,11 +327,8 @@ module Using_comparator = struct
 
   (** functor for polymorphic definition - untested *)
 
-  module%template.portable
-    [@modality p] Empty_without_value_restriction
-      (Cmp : Comparator.S1) =
-  struct
-    open Empty_without_value_restriction [@modality p] (Cmp)
+  module Empty_without_value_restriction (Cmp : Comparator.S1) = struct
+    open Empty_without_value_restriction (Cmp)
 
     let empty = empty
   end

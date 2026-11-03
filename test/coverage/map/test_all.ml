@@ -68,7 +68,7 @@ module type Hash_fold_m = Hash_fold_m
 module type Globalize_m = Globalize_m
 module type M_sexp_grammar = M_sexp_grammar
 module type M_of_sexp = M_of_sexp
-module type%template [@alloc a = (heap, stack)] Sexp_of_m = Sexp_of_m [@alloc a]
+module type Sexp_of_m = Sexp_of_m
 
 (** functor for ppx deriving - tested below *)
 
@@ -76,13 +76,8 @@ module M = M
 
 (** Portable empty *)
 
-let%template empty = (empty [@mode portable]) [@@mode portable]
-
 let%expect_test "" =
-  require_equal
-    (module Sexp)
-    [%sexp ((empty [@mode portable]) (module Sexp) : _ Map.M(Sexp).t)]
-    [%sexp []]
+  require_equal (module Sexp) [%sexp (empty (module Sexp) : _ Map.M(Sexp).t)] [%sexp []]
 ;;
 
 (** globalizing *)
@@ -114,7 +109,7 @@ let%expect_test "sexp_of_t" =
     |}]
 ;;
 
-let%template[@alloc a = (heap, stack)] sexp_of_m__t = (sexp_of_m__t [@alloc a])
+let sexp_of_m__t = sexp_of_m__t
 let m__t_of_sexp = m__t_of_sexp
 
 let%expect_test _ =
@@ -153,8 +148,6 @@ let%expect_test _ =
 
 let compare_m__t = compare_m__t
 let equal_m__t = equal_m__t
-let compare_m__t__local = compare_m__t__local
-let equal_m__t__local = equal_m__t__local
 
 let%expect_test _ =
   quickcheck_m (module Instance_int_pair) ~f:(fun (a, b) ->
@@ -399,11 +392,8 @@ module Using_comparator = struct
 
   (** functor for polymorphic definition - untested *)
 
-  module%template.portable
-    [@modality p] Empty_without_value_restriction
-      (Cmp : Comparator.S1) =
-  struct
-    open Empty_without_value_restriction [@modality p] (Cmp)
+  module Empty_without_value_restriction (Cmp : Comparator.S1) = struct
+    open Empty_without_value_restriction (Cmp)
 
     let empty = empty
   end

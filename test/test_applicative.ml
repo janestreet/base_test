@@ -207,7 +207,7 @@ module%test Make = Test_applicative_s (Applicative.Make_using_map2 (struct
     let map = `Define_using_map2
   end))
 
-module%test Make = Test_applicative_s (Applicative.Make_using_map2__local (struct
+module%test Make = Test_applicative_s (Applicative.Make_using_map2 (struct
     type 'a t = 'a Or_error.t
 
     let return x = Ok x

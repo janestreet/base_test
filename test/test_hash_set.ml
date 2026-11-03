@@ -20,7 +20,7 @@ end = struct
   module type Sexp_of_m = Hash_set.Sexp_of_m
   module type M_sexp_grammar = Hash_set.M_sexp_grammar
 
-  module%template.portable [@modality p] Creators = Hash_set.Creators [@modality p]
+  module Creators = Hash_set.Creators
   module Key = Hash_set.Key
   module M = Hash_set.M
   module Ok_or_absent = Hash_set.Ok_or_absent
@@ -64,9 +64,7 @@ end = struct
         let mem t x ~equal:_ = mem t x
 
         module Elt = struct
-          type _ t = int
-          [@@deriving
-            compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+          type _ t = int [@@deriving compare, equal, quickcheck, sexp_of, globalize]
         end
 
         module Simple = struct
@@ -431,12 +429,12 @@ end = struct
     [%expect {| ((dst (0 1 2 3)) (src (1 2 3))) |}]
   ;;
 
-  let%template equal = (Hash_set.equal [@mode m]) [@@mode m = (local, global)]
-  let%template[@mode m = (local, global)] equal_m__t = (Hash_set.equal_m__t [@mode m])
+  let equal = Hash_set.equal
+  let equal_m__t = Hash_set.equal_m__t
 
   let%expect_test "deriving equal" =
     let module Hs = struct
-      type%template t = { hs : Hash_set.M(Int).t } [@@deriving equal [@mode local]]
+      type t = { hs : Hash_set.M(Int).t } [@@deriving equal]
 
       let of_list lst = { hs = Hash_set.of_list (module Int) lst }
     end

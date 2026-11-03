@@ -230,7 +230,7 @@ let%expect_test ("32-bit cases" [@tags "js-only", "no-wasm"]) =
     |}]
 ;;
 
-let%expect_test ("32-bit wasm cases" [@tags "wasm-only"]) =
+let%expect_test ("32-bit wasm cases" [@tags "wasm-only", "32-bits-only"]) =
   test_binary (-1);
   [%expect
     {|

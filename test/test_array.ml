@@ -441,6 +441,18 @@ let%test_unit _ =
 let%test_unit _ = [%test_result: int option] (get_opt [| 3; 5; 1; 1; 2 |] 10) ~expect:None
 
 let%test_unit _ =
+  [%test_result: int Or_null.t] (get_or_null [| 3; 5; 1; 1; 2 |] 2) ~expect:(This 1)
+;;
+
+let%test_unit _ =
+  [%test_result: int Or_null.t] (get_or_null [| 3; 5; 1; 1; 2 |] (-1)) ~expect:Null
+;;
+
+let%test_unit _ =
+  [%test_result: int Or_null.t] (get_or_null [| 3; 5; 1; 1; 2 |] 10) ~expect:Null
+;;
+
+let%test_unit _ =
   List.iter
     ~f:(fun (l, expect) ->
       let t = of_list l in
@@ -744,11 +756,11 @@ let%expect_test "create_local" =
   [%expect {| (0 1 2 3 4 5 6 7 8 9) |}]
 ;;
 
-include%template struct
+include struct
   let%expect_test "foldi_right" =
     let test t ~init =
       let result =
-        (foldi_right [@alloc a]) t ~init ~f:(fun index i acc ->
+        foldi_right t ~init ~f:(fun index i acc ->
           print_s [%message (index : int) (i : int) (acc : int)];
           acc + index + i)
       in
@@ -776,7 +788,7 @@ include%template struct
       (result 50)
       |}]
   ;;
-end [@@alloc a @ m = (stack_local, heap_global)]
+end
 
 let%expect_test "[split_n]" =
   quickcheck_m (module Int_t) ~f:(fun arr ->
@@ -812,40 +824,30 @@ let%expect_test "[chunks_of]" =
     |}]
 ;;
 
-[%%template
 let print sexp_of t = t |> sexp_of |> Sexplib.Sexp.to_string_hum |> print_endline
 
 let%expect_test "templated map{,i}" =
   let t = Array.init 6 ~f:(fun i -> Int63.of_int (i + 1)) in
   print [%sexp_of: Int63.t Array.t] t;
   [%expect {| (1 2 3 4 5 6) |}];
-  let t =
-    (mapi [@kind (value_or_null mod external64) value_or_null]) t ~f:(fun i x ->
-      {%string|%{i#Int}%{x#Int63}|})
-  in
+  let t = mapi t ~f:(fun i x -> {%string|%{i#Int}%{x#Int63}|}) in
   print [%sexp_of: string array] t;
   [%expect {| (01 12 23 34 45 56) |}];
-  let t = (map [@kind value_or_null bits64]) t ~f:(fun x -> Int64_u.(of_string x + 1L)) in
-  print [%sexp_of: (Int64_u.t Array.t[@kind bits64])] t;
+  let t = map t ~f:(fun x -> Int64_u.(of_string x + 1L)) in
+  print [%sexp_of: Int64_u.t Array.t] t;
   [%expect {| (2 13 24 35 46 57) |}];
   let t =
-    (mapi [@kind bits64 float64]) t ~f:(fun i x ->
+    mapi t ~f:(fun i x ->
       let f = Int64_u.to_float x in
       let i = Float_u.of_int i in
       Float_u.((f * 2.25) - i))
   in
-  print [%sexp_of: (Float_u.t Array.t[@kind float64])] t;
+  print [%sexp_of: Float_u.t Array.t] t;
   [%expect {| (4.5 28.25 52 75.75 99.5 123.25) |}];
-  let t =
-    (map [@kind float64 (value_or_null mod external64)]) t ~f:(fun x ->
-      Float_u.(x > 55.0))
-  in
+  let t = map t ~f:(fun x -> Float_u.(x > 55.0)) in
   print [%sexp_of: bool Array.t] t;
   [%expect {| (false false false true true true) |}];
-  let t =
-    (mapi [@kind value_or_null (value_or_null mod external64)]) t ~f:(fun i x ->
-      if x then This i else Null)
-  in
+  let t = mapi t ~f:(fun i x -> if x then This i else Null) in
   print [%sexp_of: int or_null array] t;
   [%expect {| (() () () (3) (4) (5)) |}];
   let t = map t ~f:(Or_null.map ~f:(fun x -> {%string|%{x#Int} !|})) in
@@ -874,10 +876,10 @@ let%expect_test "derivers on value_or_null" =
     (() (2) (3) ())
     (() (2) (3) ())
     |}];
-  print [%sexp_of: int] (([%compare: int or_null array] [@mode local]) t t');
+  print [%sexp_of: int] ([%compare: int or_null array] t t');
   [%expect {| 0 |}];
   t'.(0) <- This 1;
-  print [%sexp_of: int] (([%compare: Int.t Or_null.t Array.t] [@mode local]) t t');
+  print [%sexp_of: int] ([%compare: Int.t Or_null.t Array.t] t t');
   [%expect {| -1 |}];
   print [%sexp_of: int or_null array] ([%globalize: int or_null array] t');
   print [%sexp_of: Int.t Or_null.t Array.t] ([%globalize: Int.t Or_null.t Array.t] t');
@@ -886,4 +888,4 @@ let%expect_test "derivers on value_or_null" =
     ((1) (2) (3) ())
     ((1) (2) (3) ())
     |}]
-;;]
+;;

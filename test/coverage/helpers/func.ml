@@ -11,7 +11,7 @@ type ('input, 'output) t =
   { initial : 'output
   ; transitions : ('input * 'output) list
   }
-[@@deriving equal ~localize, quickcheck, sexp_of]
+[@@deriving equal, quickcheck, sexp_of]
 
 let inputs t = List.map t.transitions ~f:fst
 let outputs t = t.initial :: List.map t.transitions ~f:snd

@@ -41,100 +41,83 @@ module Definitions = struct
 
   (** Monomorphic containers with a hard-coded [Elt] type. *)
 
-  module type%template [@alloc a @ l = (heap_global, stack_local)] Container_s0 = sig
+  module type Container_s0 = sig
     module Elt : sig
-      type t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
-    type t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+    type t [@@deriving equal, quickcheck, sexp_of]
 
-    include Container.S0 [@alloc a] with type elt := Elt.t and type t := t
+    include Container.S0 with type elt := Elt.t and type t := t
   end
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Indexed_container_s0 = sig
+  module type Indexed_container_s0 = sig
     module Elt : sig
-      type t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
-    type t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+    type t [@@deriving equal, quickcheck, sexp_of]
 
-    include Indexed_container.S0 [@alloc a] with type elt := Elt.t and type t := t
+    include Indexed_container.S0 with type elt := Elt.t and type t := t
   end
 
   (** Monomorphic containers with creator functions. *)
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Container_s0_with_creators = sig
+  module type Container_s0_with_creators = sig
     module Elt : sig
-      type t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
-    type t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+    type t [@@deriving equal, quickcheck, sexp_of]
 
-    include Container.S0_with_creators [@alloc a] with type elt := Elt.t and type t := t
+    include Container.S0_with_creators with type elt := Elt.t and type t := t
   end
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Indexed_container_s0_with_creators = sig
+  module type Indexed_container_s0_with_creators = sig
     module Elt : sig
-      type t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
-    type t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+    type t [@@deriving equal, quickcheck, sexp_of]
 
-    include
-      Indexed_container.S0_with_creators [@alloc a] with type elt := Elt.t and type t := t
+    include Indexed_container.S0_with_creators with type elt := Elt.t and type t := t
   end
 
   (** Polymorphic containers with arbitrary element types. *)
 
-  module type%template [@alloc a @ l = (heap_global, stack_local)] Container_s1 = sig
-    type 'a t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+  module type Container_s1 = sig
+    type 'a t [@@deriving equal, quickcheck, sexp_of]
 
-    include Container.S1 [@alloc a] with type 'a t := 'a t
+    include Container.S1 with type 'a t := 'a t
   end
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Indexed_container_s1 = sig
-    type 'a t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+  module type Indexed_container_s1 = sig
+    type 'a t [@@deriving equal, quickcheck, sexp_of]
 
-    include Indexed_container.S1 [@alloc a] with type 'a t := 'a t
+    include Indexed_container.S1 with type 'a t := 'a t
   end
 
   (** Polymorphic containers with creator functions. *)
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Container_s1_with_creators = sig
-    type 'a t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+  module type Container_s1_with_creators = sig
+    type 'a t [@@deriving equal, quickcheck, sexp_of]
 
-    include Container.S1_with_creators [@alloc a] with type 'a t := 'a t
+    include Container.S1_with_creators with type 'a t := 'a t
   end
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Indexed_container_s1_with_creators = sig
-    type 'a t [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+  module type Indexed_container_s1_with_creators = sig
+    type 'a t [@@deriving equal, quickcheck, sexp_of]
 
-    include Indexed_container.S1_with_creators [@alloc a] with type 'a t := 'a t
+    include Indexed_container.S1_with_creators with type 'a t := 'a t
   end
 
   (** Generic interfaces that subsume monomorphic, polymorphic, and phantom-typed
       containers. They derive values for a [Simple] container type that hard-codes a
       specific [phantom] type for testing. *)
 
-  module type%template [@alloc a @ l = (heap_global, stack_local)] Container_generic = sig
+  module type Container_generic = sig
     module Elt : sig
-      type 'a t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type 'a t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
     type ('a, 'phantom1, 'phantom2) t
@@ -142,7 +125,6 @@ module Definitions = struct
 
     include
       Container.Generic
-      [@alloc a]
       with type 'a elt := 'a Elt.t
        and type ('a, 'p1, 'p2) t := ('a, 'p1, 'p2) t
 
@@ -151,16 +133,13 @@ module Definitions = struct
       type phantom2
 
       type 'a t = ('a, phantom1, phantom2) container
-      [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      [@@deriving equal, quickcheck, sexp_of]
     end
   end
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Indexed_container_generic = sig
+  module type Indexed_container_generic = sig
     module Elt : sig
-      type 'a t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type 'a t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
     type ('a, 'phantom1, 'phantom2) t
@@ -168,7 +147,6 @@ module Definitions = struct
 
     include
       Indexed_container.Generic
-      [@alloc a]
       with type 'a elt := 'a Elt.t
        and type ('a, 'p1, 'p2) t := ('a, 'p1, 'p2) t
 
@@ -177,19 +155,16 @@ module Definitions = struct
       type phantom2
 
       type 'a t = ('a, phantom1, phantom2) container
-      [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      [@@deriving equal, quickcheck, sexp_of]
     end
   end
 
   (** Generic interfaces with creator functions. They add a [Concat] type used as the
       input to [concat]. *)
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Container_generic_with_creators = sig
+  module type Container_generic_with_creators = sig
     module Elt : sig
-      type 'a t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type 'a t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
     type ('a, 'phantom1, 'phantom2) concat
@@ -198,7 +173,6 @@ module Definitions = struct
 
     include
       Container.Generic_with_creators
-      [@alloc a]
       with type 'a elt := 'a Elt.t
        and type ('a, 'p1, 'p2) t := ('a, 'p1, 'p2) t
        and type ('a, 'p1, 'p2) concat := ('a, 'p1, 'p2) concat
@@ -208,7 +182,7 @@ module Definitions = struct
       type phantom2
 
       type 'a t = ('a, phantom1, phantom2) container
-      [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      [@@deriving equal, quickcheck, sexp_of]
 
       module Concat : sig
         type 'a t = ('a, phantom1, phantom2) concat
@@ -220,12 +194,9 @@ module Definitions = struct
     end
   end
 
-  module type%template
-    [@alloc a @ l = (heap_global, stack_local)] Indexed_container_generic_with_creators = sig
+  module type Indexed_container_generic_with_creators = sig
     module Elt : sig
-      type 'a t
-      [@@deriving
-        compare ~localize, equal ~localize, quickcheck, sexp_of ~stackify, globalize]
+      type 'a t [@@deriving compare, equal, quickcheck, sexp_of, globalize]
     end
 
     type ('a, 'phantom1, 'phantom2) t
@@ -233,7 +204,6 @@ module Definitions = struct
 
     include
       Indexed_container.Generic_with_creators
-      [@alloc a]
       with type 'a elt := 'a Elt.t
        and type ('a, 'p1, 'p2) t := ('a, 'p1, 'p2) t
 
@@ -242,7 +212,7 @@ module Definitions = struct
       type phantom2
 
       type 'a t = ('a, phantom1, phantom2) container
-      [@@deriving (equal [@mode l]), quickcheck, (sexp_of [@alloc a])]
+      [@@deriving equal, quickcheck, sexp_of]
 
       module Concat : sig
         type 'a t = ('a, phantom1, phantom2) concat
@@ -257,53 +227,36 @@ module Definitions = struct
   (** Testing functions for containers. *)
 
   module type Container_tests = sig
-    [%%template:
-    [@@@alloc.default a = (heap, stack)]
-
-    val test_container_s0 : ((module Container_s0)[@alloc a]) test
-    val test_container_s1 : ((module Container_s1)[@alloc a]) test
-    val test_container_generic : ((module Container_generic)[@alloc a]) test]
+    val test_container_s0 : (module Container_s0) test
+    val test_container_s1 : (module Container_s1) test
+    val test_container_generic : (module Container_generic) test
   end
 
   module type Indexed_container_tests = sig
-    [%%template:
-    [@@@alloc.default a = (heap, stack)]
-
-    val test_indexed_container_s0 : ((module Indexed_container_s0)[@alloc a]) test
-    val test_indexed_container_s1 : ((module Indexed_container_s1)[@alloc a]) test
-
-    val test_indexed_container_generic
-      : ((module Indexed_container_generic)[@alloc a]) test]
+    val test_indexed_container_s0 : (module Indexed_container_s0) test
+    val test_indexed_container_s1 : (module Indexed_container_s1) test
+    val test_indexed_container_generic : (module Indexed_container_generic) test
   end
 
   (** Testing functions including creators. *)
 
   module type Container_with_creators_tests = sig
-    [%%template:
-    [@@@alloc.default a = (heap, stack)]
-
-    val test_container_s0_with_creators
-      : ((module Container_s0_with_creators)[@alloc a]) test
-
-    val test_container_s1_with_creators
-      : ((module Container_s1_with_creators)[@alloc a]) test
+    val test_container_s0_with_creators : (module Container_s0_with_creators) test
+    val test_container_s1_with_creators : (module Container_s1_with_creators) test
 
     val test_container_generic_with_creators
-      : ((module Container_generic_with_creators)[@alloc a]) test]
+      : (module Container_generic_with_creators) test
   end
 
   module type Indexed_container_with_creators_tests = sig
-    [%%template:
-    [@@@alloc.default a = (heap, stack)]
-
     val test_indexed_container_s0_with_creators
-      : ((module Indexed_container_s0_with_creators)[@alloc a]) test
+      : (module Indexed_container_s0_with_creators) test
 
     val test_indexed_container_s1_with_creators
-      : ((module Indexed_container_s1_with_creators)[@alloc a]) test
+      : (module Indexed_container_s1_with_creators) test
 
     val test_indexed_container_generic_with_creators
-      : ((module Indexed_container_generic_with_creators)[@alloc a]) test]
+      : (module Indexed_container_generic_with_creators) test
   end
 end
 
